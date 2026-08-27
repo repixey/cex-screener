@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="description" content="Real-time crypto screener with tick-per-second metrics and short-window volumes">
+  <title>Live Screener — TPS & Short Volumes</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B0E14'/%3E%3Cpath d='M12 42 L24 28 L32 34 L46 16' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M40 16 h6 v6' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://stream.binance.com">
+  <link rel="preconnect" href="https://assets.coincap.io" crossorigin>
+  <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    [v-cloak]{display:none}
+    :root{
+      --bg:#0B0E14;
+      --bg-soft:#0F131D;
+      --card:#11151F;
+      --card-2:#151A26;
+      --border:#242B3A;
+      --border-soft:#1B2130;
+      --text:#D5DAE3;
+      --muted:#7E879C;
+      --faint:#5A6174;
+      --up:#0ECB81;
+      --down:#F6465D;
+      --accent:#4B7BFF;
+      --accent-2:#7AA2FF;
+      --warn:#F0B90B;
+      --up-bg:rgba(14,203,129,.12);
+      --down-bg:rgba(246,70,93,.12);
+      --mono:"JetBrains Mono","SF Mono","Roboto Mono",ui-monospace,Menlo,Consolas,monospace;
+      --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Inter",Roboto,"Helvetica Neue",Arial,sans-serif;
+      --radius:12px;
+    }
+    ::selection{background:rgba(75,123,255,.35);color:#fff}
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-thumb{background:#242A38;border-radius:6px;border:2px solid var(--bg)}
+    ::-webkit-scrollbar-track{background:transparent}
+    body{
+      font-family:var(--sans);
+      color:var(--text);
+      min-height:100vh;
+      background:
+        radial-gradient(1100px 500px at 85% -10%, rgba(75,123,255,.08), transparent 60%),
+        radial-gradient(900px 420px at -10% 0%, rgba(14,203,129,.05), transparent 55%),
+        var(--bg);
+    }
+    .font-mono{font-family:var(--mono)}
+    .topbar{
+      position:sticky;top:0;z-index:100;
+      backdrop-filter:blur(14px);
+      background:rgba(11,14,20,.78);
+      border-bottom:1px solid var(--border-soft);
+    }
+    .brand-mark{
+      width:36px;height:36px;border-radius:10px;flex:0 0 auto;
+      background:linear-gradient(135deg,#4B7BFF,#7AA2FF);
+      display:grid;place-items:center;color:#fff;font-size:17px;
+      box-shadow:0 4px 14px rgba(75,123,255,.35);
+    }
+    .status-chip{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:6px 12px;border-radius:999px;
+      border:1px solid var(--border);background:var(--card);
+      font-family:var(--mono);font-size:11.5px;color:var(--text);white-space:nowrap;
+    }
+    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
+    .status-dot.live{background:var(--up);box-shadow:0 0 10px var(--up)}
+    .status-dot.bad{background:var(--down);box-shadow:0 0 10px var(--down)}
+    .status-dot.connecting{background:var(--warn);box-shadow:0 0 10px var(--warn);animation:blink 1.1s infinite}
+    @keyframes blink{50%{opacity:.25}}
+    .kpi{
+      background:linear-gradient(180deg,var(--card-2),var(--card));
+      border:1px solid var(--border-soft);
+      border-radius:var(--radius);
+      padding:12px 14px;
+      display:flex;align-items:center;gap:12px;
+      transition:border-color .2s,transform .2s;
+      min-width:0;
+    }
+    .kpi:hover{border-color:var(--border);transform:translateY(-1px)}
+    .kpi-icon{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex:0 0 auto}
+    .kpi-label{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600}
+    .kpi-value{font-family:var(--mono);font-size:17px;font-weight:700;color:#fff;line-height:1.2;white-space:nowrap}
+    .kpi-sub{font-size:10.5px;color:var(--faint);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .panel{background:var(--card);border:1px solid var(--border-soft);border-radius:var(--radius)}
+    .form-control,.form-select{
+      background:var(--bg-soft);border-color:var(--border);color:var(--text);border-radius:8px;
+    }
+    .form-control:focus,.form-select:focus{
+      background:var(--bg-soft);border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(75,123,255,.15);color:#fff;
+    }
+    .input-group-text{background:var(--bg-soft);border-color:var(--border);color:var(--muted)}
+    ::placeholder{color:var(--faint)}
+    input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    input[type=number]{-moz-appearance:textfield;appearance:textfield}
+    .btn-clear{
+      background:var(--bg-soft);border:1px solid var(--border);border-left:none;
+      color:var(--muted);padding:0 11px;transition:color .15s;cursor:pointer;
+    }
+    .btn-clear:hover{color:#fff}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:600;
+      border:1px solid var(--border);background:var(--bg-soft);color:var(--muted);
+      cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;
+    }
+    .chip:hover{color:var(--text);border-color:#39415A}
+    .chip.on{color:var(--warn);border-color:rgba(240,185,11,.4);background:rgba(240,185,11,.08)}
+    .pairs-count{
+      font-size:12px;color:#fff;background:rgba(75,123,255,.12);
+      border:1px solid rgba(75,123,255,.3);padding:5px 12px;border-radius:999px;
+      font-weight:600;white-space:nowrap;
+    }
+    .pairs-count-label{color:var(--muted);font-weight:500}
+    .table-wrap{
+      max-height:calc(100vh - 330px);min-height:340px;
+      overflow:auto;border:1px solid var(--border-soft);
+      border-radius:var(--radius);background:var(--card);
+      overscroll-behavior:contain;
+      scrollbar-width:thin;scrollbar-color:#242A38 transparent;
+    }
+    .screener{
+      margin:0;font-family:var(--mono);font-size:12.2px;
+      border-collapse:separate;border-spacing:0;min-width:1040px;
+      --bs-table-bg:transparent;
+    }
+    .screener thead th{
+      position:sticky;top:0;z-index:5;
+      background:linear-gradient(180deg,#151A28,#12161F);
+      border-bottom:1px solid var(--border);
+      color:var(--muted);font-size:10.4px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+      padding:10px 12px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;
+    }
+    .screener thead th:hover{color:#fff}
+    .screener thead th.active{color:var(--accent-2)}
+    .screener thead th.no-sort{cursor:default}
+    .sort-icon{font-size:9px;margin-left:2px}
+    .screener td{
+      padding:8px 12px;border-bottom:1px solid var(--border-soft);
+      vertical-align:middle;white-space:nowrap;
+    }
+    .screener tbody tr{transition:background .15s}
+    .screener tbody tr:hover td{background:rgba(255,255,255,.03)}
+    .screener tbody tr:last-child td{border-bottom:none}
+    .coin-avatar{
+      display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:0 0 auto;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+    }
+    .coin-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .coin-avatar-fb{color:#fff;font-weight:700;letter-spacing:-.5px;line-height:1}
+    .pair-cell{display:flex;align-items:center;gap:10px;min-width:150px}
+    .pair-name{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+    .pair-base{color:#fff;font-weight:700;font-size:12.5px;text-decoration:none}
+    a.pair-base{transition:color .15s}
+    a.pair-base:hover{color:var(--accent-2)}
+    .pair-quote{color:var(--faint);font-size:10px}
+    .star-btn{
+      background:none;border:none;padding:2px 4px;margin-left:auto;
+      color:var(--faint);opacity:0;line-height:1;font-size:12px;cursor:pointer;
+      transition:opacity .15s,color .15s,transform .15s;
+    }
+    .screener tr:hover .star-btn{opacity:1}
+    .star-btn:hover{transform:scale(1.25);color:#E4C580}
+    .star-btn.on{opacity:1;color:var(--warn)}
+    .px{font-weight:600}
+    .px.up{color:var(--up)}
+    .px.down{color:var(--down)}
+    @keyframes flashUp{0%{background:rgba(14,203,129,.28)}100%{background:transparent}}
+    @keyframes flashDown{0%{background:rgba(246,70,93,.28)}100%{background:transparent}}
+    .flash-up{animation:flashUp .9s ease-out}
+    .flash-down{animation:flashDown .9s ease-out}
+    .badge-chg{
+      padding:3px 7px;border-radius:6px;font-weight:600;font-size:11px;
+      display:inline-block;min-width:64px;text-align:right;font-family:var(--mono);
+    }
+    .badge-chg.up{color:var(--up);background:var(--up-bg)}
+    .badge-chg.down{color:var(--down);background:var(--down-bg)}
+    .badge-chg.flat{color:var(--muted);background:rgba(255,255,255,.05)}
+    .tps-badge{
+      font-weight:700;padding:2.5px 8px;border-radius:6px;min-width:32px;
+      display:inline-block;text-align:center;
+      background:linear-gradient(135deg,rgba(75,123,255,.16),rgba(122,162,255,.08));
+      color:var(--accent-2);border:1px solid rgba(75,123,255,.25);
+    }
+    .tps-badge.tps-hot{
+      background:linear-gradient(135deg,rgba(240,185,11,.2),rgba(240,185,11,.08));
+      color:var(--warn);border-color:rgba(240,185,11,.35);
+    }
+    .vol-cell{color:var(--muted)}
+    .pulse-bar{display:inline-flex;gap:2.5px;align-items:flex-end;height:15px}
+    .pulse-bar i{width:3px;border-radius:1.5px;background:#2C3444;transition:height .2s,opacity .2s}
+    .pulse-bar i.u{background:var(--up)}
+    .pulse-bar i.d{background:var(--down)}
+    .empty-state{padding:64px 20px;text-align:center;color:var(--muted)}
+    .empty-state .bi{font-size:34px;opacity:.35;display:block}
+    .spinner-dim{width:2.2rem;height:2.2rem;color:var(--accent);display:block;margin:0 auto 14px}
+    .app-footer{color:var(--faint);font-size:11px}
+    @media (max-width:1399.98px){.hide-xxl{display:none}}
+    @media (max-width:1199.98px){.hide-xl{display:none}}
+    @media (max-width:991.98px){.hide-lg{display:none}}
+    @media (max-width:767.98px){.hide-md{display:none}}
+  </style>
+</head>
+<body>
+
+<div id="app" v-cloak>
+  <header class="topbar">
+    <div class="container-xxl py-2 d-flex align-items-center justify-content-between gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <div class="brand-mark"><i class="bi bi-activity"></i></div>
+        <div>
+          <div class="fw-bold text-white" style="font-size:15px;letter-spacing:.2px">Live Screener</div>
+          <div class="kpi-sub">TPS & high-frequency stream</div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="status-chip d-none d-md-inline-flex">
+          <span class="status-dot" :class="connectionStatus"></span>
+          <span :class="connectionStatus === 'live' ? '' : 'text-warning'">{{ statusText }}</span>
+          <span class="text-body-secondary" v-if="latencyMs !== null && connectionStatus === 'live'">· {{ latencyMs }}ms</span>
+        </span>
+        <span class="status-chip">
+          <i class="bi bi-broadcast" :class="connectionStatus === 'live' ? 'text-success' : 'text-secondary'"></i>
+          <span class="d-none d-sm-inline">{{ fmtUptime }}</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container-xxl py-3">
+    <section class="row g-2 g-md-3 mb-3">
+      <div class="col-6 col-lg-3">
+        <div class="kpi h-100">
+          <div class="kpi-icon" style="background:rgba(75,123,255,.14);color:#7AA2FF"><i class="bi bi-collection"></i></div>
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="kpi-label">Tracked pairs</div>
+            <div class="kpi-value">{{ totalPairs }}</div>
+            <div class="kpi-sub">{{ filteredRows.length }} match filters</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="kpi h-100">
+          <div class="kpi-icon" style="background:rgba(14,203,129,.14);color:#0ECB81"><i class="bi bi-lightning-charge-fill"></i></div>
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="kpi-label">Event rate</div>
+            <div class="kpi-value">{{ ups }}<span class="fs-6 text-body-secondary">/s</span></div>
+            <div class="kpi-sub">ticker updates</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="kpi h-100">
+          <div class="kpi-icon" style="background:rgba(240,185,11,.14);color:#F0B90B"><i class="bi bi-fire"></i></div>
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="kpi-label">Hottest TPS</div>
+            <div class="kpi-value text-truncate">{{ leader ? leader.base : '—' }}</div>
+            <div class="kpi-sub">{{ leader ? leader.tps + ' ticks/s' : 'waiting for data' }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="kpi h-100">
+          <div class="kpi-icon" style="background:rgba(201,139,255,.14);color:#C98BFF"><i class="bi bi-broadcast-pin"></i></div>
+          <div class="flex-grow-1" style="min-width:0">
+            <div class="kpi-label">Stream lag</div>
+            <div class="kpi-value">{{ latencyMs === null ? '—' : latencyMs + 'ms' }}</div>
+            <div class="kpi-sub">uptime {{ fmtUptime }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel p-2 p-md-3 mb-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-lg-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input ref="searchEl" type="text" class="form-control font-mono" placeholder="Search pair — press /"
+                   v-model="searchQuery" autocomplete="off" spellcheck="false">
+            <button v-if="searchQuery" class="btn-clear" type="button" @click="searchQuery = ''" aria-label="Clear search">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+        <div class="col-6 col-lg-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text font-mono"><i class="bi bi-tag"></i></span>
+            <input type="number" class="form-control font-mono" placeholder="Price min" v-model.number="minPrice" step="any" inputmode="decimal">
+            <span class="input-group-text">–</span>
+            <input type="number" class="form-control font-mono" placeholder="Price max" v-model.number="maxPrice" step="any" inputmode="decimal">
+          </div>
+        </div>
+        <div class="col-6 col-lg-2">
+          <select class="form-select form-select-sm font-mono" v-model="selectedQuote">
+            <option v-for="q in quotes" :key="q" :value="q">{{ q }}</option>
+            <option value="ALL">All quotes</option>
+          </select>
+        </div>
+        <div class="col-6 col-lg-2 d-flex align-items-center justify-content-lg-end gap-2">
+          <button class="chip" :class="{ on: onlyFavs }" type="button" @click="onlyFavs = !onlyFavs">
+            <i class="bi" :class="onlyFavs ? 'bi-star-fill' : 'bi-star'"></i>Favs
+          </button>
+          <span class="pairs-count font-mono" v-if="!hasFilters">
+            {{ filteredRows.length }}<span class="pairs-count-label"> pairs</span>
+          </span>
+          <button v-else class="chip" type="button" @click="resetFilters">
+            <i class="bi bi-x-circle"></i>Reset
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="table-wrap">
+      <table class="table screener align-middle table-hover">
+        <thead>
+          <tr>
+            <th @click="sortBy('symbol')" :class="{ active: sortKey === 'symbol' }">
+              <i class="bi bi-coin me-1"></i>Pair <i class="sort-icon" :class="getSortIcon('symbol')"></i>
+            </th>
+            <th class="text-end" @click="sortBy('price')" :class="{ active: sortKey === 'price' }">
+              Price <i class="sort-icon" :class="getSortIcon('price')"></i>
+            </th>
+            <th class="text-end" @click="sortBy('chg24')" :class="{ active: sortKey === 'chg24' }" title="24h change">
+              24h % <i class="sort-icon" :class="getSortIcon('chg24')"></i>
+            </th>
+            <th class="text-end" @click="sortBy('chg1s')" :class="{ active: sortKey === 'chg1s' }" title="Change over 1 second">
+              1s % <i class="sort-icon" :class="getSortIcon('chg1s')"></i>
+            </th>
+            <th class="text-end" @click="sortBy('chg1m')" :class="{ active: sortKey === 'chg1m' }" title="Change over 1 minute">
+              1m % <i class="sort-icon" :class="getSortIcon('chg1m')"></i>
+            </th>
+            <th class="text-end" @click="sortBy('tps')" :class="{ active: sortKey === 'tps' }" title="Ticker updates per second">
+              TPS <i class="sort-icon" :class="getSortIcon('tps')"></i>
+            </th>
+            <th class="text-end hide-xxl" @click="sortBy('vol1s')" :class="{ active: sortKey === 'vol1s' }" title="Traded volume in last second">
+              Vol 1s <i class="sort-icon" :class="getSortIcon('vol1s')"></i>
+            </th>
+            <th class="text-end hide-lg" @click="sortBy('vol1m')" :class="{ active: sortKey === 'vol1m' }" title="Traded volume in last minute">
+              Vol 1m <i class="sort-icon" :class="getSortIcon('vol1m')"></i>
+            </th>
+            <th class="text-end hide-md" @click="sortBy('vol')" :class="{ active: sortKey === 'vol' }" title="Rolling 24h quote volume">
+              Vol 24h <i class="sort-icon" :class="getSortIcon('vol')"></i>
+            </th>
+            <th class="text-end hide-xl" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Estimated Market Cap (24h Base Volume * Price)">
+              MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
+            </th>
+            <th class="text-end no-sort hide-md" title="Last tick directions">
+              <i class="bi bi-graph-up-arrow"></i>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="displayedRows.length === 0">
+            <td colspan="11">
+              <div class="empty-state">
+                <template v-if="connectionStatus !== 'live'">
+                  <div class="spinner-border spinner-dim" role="status"></div>
+                  <div class="fw-semibold text-white">Connecting to Binance stream…</div>
+                  <div class="small">Real-time ticker data will appear here</div>
+                </template>
+                <template v-else>
+                  <i class="bi bi-funnel mb-2"></i>
+                  <div class="fw-semibold text-white">No pairs match the filters</div>
+                  <button class="btn btn-sm btn-outline-primary mt-3" type="button" @click="resetFilters">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset filters
+                  </button>
+                </template>
+              </div>
+            </td>
+          </tr>
+          <tr v-for="row in displayedRows" :key="row.sym">
+            <td>
+              <div class="pair-cell">
+                <coin-icon :symbol="row.base" :size="24"></coin-icon>
+                <div class="pair-name">
+                  <a v-if="row.quote" class="pair-base" :href="binanceUrl(row)" target="_blank" rel="noopener">{{ row.base }}</a>
+                  <span v-else class="pair-base">{{ row.base }}</span>
+                  <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
+                </div>
+                <button class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
+                        @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
+                  <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
+                </button>
+              </div>
+            </td>
+            <td class="text-end" :class="row.flashCls">
+              <span class="px" :class="row.c24.cls === 'up' ? 'up' : row.c24.cls === 'down' ? 'down' : ''">
+                {{ fmtPrice(row.price) }}
+              </span>
+            </td>
+            <td class="text-end"><span class="badge-chg" :class="row.c24.cls">{{ row.c24.text }}</span></td>
+            <td class="text-end"><span class="badge-chg" :class="row.c1s.cls">{{ row.c1s.text }}</span></td>
+            <td class="text-end"><span class="badge-chg" :class="row.c1m.cls">{{ row.c1m.text }}</span></td>
+            <td class="text-end"><span class="tps-badge" :class="{ 'tps-hot': row.tps >= 3 }">{{ row.tps }}</span></td>
+            <td class="text-end vol-cell hide-xxl">{{ fmtVol(row.vol1s) }}</td>
+            <td class="text-end vol-cell hide-lg">{{ fmtVol(row.vol1m) }}</td>
+            <td class="text-end vol-cell hide-md">{{ fmtVol(row.vol) }}</td>
+            <td class="text-end vol-cell hide-xl">{{ fmtVol(row.mcap) }}</td>
+            <td class="text-end hide-md">
+              <div v-if="row.ticks.length" class="pulse-bar">
+                <i v-for="(t, idx) in row.ticks" :key="idx"
+                   :class="{ u: t === 1, d: t === -1 }"
+                   :style="tickStyle(idx, row.ticks.length)"></i>
+              </div>
+              <span v-else class="vol-cell">—</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="app-footer d-flex flex-wrap justify-content-between gap-2 mt-3">
+      <span><i class="bi bi-broadcast me-1"></i>Binance spot · !miniTicker stream</span>
+      <span>Prices indicative · Not financial advice</span>
+    </footer>
+  </main>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount } = Vue;
+
+const STREAM_URL = 'wss://stream.binance.com:9443/ws/!miniTicker@arr';
+const QUOTES = ['USDT', 'FDUSD', 'USDC', 'TUSD', 'BTC', 'ETH', 'BNB', 'TRY', 'EUR', 'DAI'];
+const MAX_ROWS = 150;
+const HISTORY_LIMIT = 240;
+const HISTORY_TTL = 95000;
+const FLASH_MS = 950;
+const STORAGE_PREFIX = 'screener:';
+
+const store = {
+  get(key, fallback) {
+    try {
+      const raw = localStorage.getItem(STORAGE_PREFIX + key);
+      return raw === null ? fallback : JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value)); } catch {}
+  }
+};
+
+const hashHue = (str) => {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h % 360;
+};
+
+const iconPref = new Map();
+
+const iconSources = (sym) => {
+  const s = sym.toLowerCase();
+  return [
+    `https://assets.coincap.io/assets/icons/${s}@2x.png`,
+    `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/color/${s}.png`,
+    `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/color/${s}.png`,
+    `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${s}.png`
+  ];
+};
+
+const CoinIcon = {
+  props: {
+    symbol: { type: String, required: true },
+    size: { type: Number, default: 22 }
+  },
+  data() {
+    return { idx: iconPref.get(this.symbol) ?? 0, failed: false };
+  },
+  computed: {
+    src() { return iconSources(this.symbol)[this.idx]; },
+    label() {
+      const s = this.symbol;
+      return s.length <= 4 ? s : s.slice(0, 3);
+    },
+    avatarStyle() {
+      const style = { width: this.size + 'px', height: this.size + 'px' };
+      if (this.failed) {
+        const h = hashHue(this.symbol);
+        style.background = `linear-gradient(135deg, hsl(${h}, 58%, 44%), hsl(${(h + 50) % 360}, 58%, 30%))`;
+      }
+      return style;
+    },
+    labelStyle() {
+      const k = this.label.length > 3 ? 0.3 : 0.42;
+      return { fontSize: Math.max(8, Math.round(this.size * k)) + 'px' };
+    }
+  },
+  methods: {
+    onError() {
+      if (this.idx + 1 < iconSources(this.symbol).length) {
+        this.idx++;
+        iconPref.set(this.symbol, this.idx);
+      } else {
+        this.failed = true;
+      }
+    }
+  },
+  template: `
+    <span class="coin-avatar" :style="avatarStyle">
+      <img v-if="!failed" :src="src" :alt="symbol" loading="lazy" decoding="async" @error="onError">
+      <span v-else class="coin-avatar-fb" :style="labelStyle">{{ label }}</span>
+    </span>
+  `
+};
+
+createApp({
+  components: { 'coin-icon': CoinIcon },
+  setup() {
+    const marketData = new Map();
+    const baseSupplyMap = new Map();
+    const favs = reactive(new Set(store.get('favs', [])));
+    const uiTick = ref(0);
+    const totalPairs = ref(0);
+    const ups = ref(0);
+    const latencyMs = ref(null);
+    const connectionStatus = ref('connecting');
+    const statusText = ref('Connecting');
+    const uptimeSec = ref(0);
+
+    const searchQuery = ref(store.get('search', ''));
+    const selectedQuote = ref(store.get('quote', 'USDT'));
+    const minPrice = ref(null);
+    const maxPrice = ref(null);
+    const onlyFavs = ref(store.get('onlyFavs', false));
+    const sortKey = ref(store.get('sortKey', 'vol'));
+    const sortDir = ref(store.get('sortDir', -1));
+    const searchEl = ref(null);
+
+    let ws = null;
+    let reconnectDelay = 1000;
+    let lastMsgAt = 0;
+    let entryCount = 0;
+    let latencySum = 0;
+    let latencyN = 0;
+    let connectedAt = 0;
+    const timers = [];
+
+    const fetchCirculatingSupply = async () => {
+      try {
+        const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+        if (!res.ok) return;
+        const tickers = await res.json();
+        for (const t of tickers) {
+          const sym = t.symbol;
+          const quoteVol = parseFloat(t.quoteVolume);
+          const lastPrice = parseFloat(t.lastPrice);
+          if (quoteVol > 0 && lastPrice > 0) {
+            const baseVol = quoteVol / lastPrice;
+            const quote = QUOTES.find(q => sym.endsWith(q));
+            if (quote) {
+              const base = sym.slice(0, -quote.length);
+              if (base) baseSupplyMap.set(base, baseVol * 1500);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch market cap supply data:', err);
+      }
+    };
+
+    const splitSymbol = (sym, quote) => {
+      if (quote !== 'ALL') {
+        return sym.endsWith(quote) ? { base: sym.slice(0, -quote.length), quote } : { base: sym, quote: '' };
+      }
+      for (const q of QUOTES) {
+        if (sym.endsWith(q)) return { base: sym.slice(0, -q.length), quote: q };
+      }
+      return { base: sym, quote: '' };
+    };
+
+    const pctChange = (now, then) =>
+      (then !== null && isFinite(then) && then !== 0) ? (now - then) / then * 100 : null;
+
+    const windowMetrics = (entry, ms, now) => {
+      const target = now - ms;
+      let refPoint = null;
+      let ticks = 0;
+      for (let i = entry.history.length - 1; i >= 0; i--) {
+        const h = entry.history[i];
+        if (h.t >= target) {
+          refPoint = h;
+          ticks++;
+        } else break;
+      }
+      return {
+        price: refPoint ? refPoint.p : null,
+        ticks,
+        volDelta: refPoint ? Math.max(0, entry.vol - refPoint.v) : 0
+      };
+    };
+
+    const fmtPrice = (p) => {
+      if (p === null || p === undefined || !isFinite(p)) return '—';
+      if (p >= 1000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (p >= 1) return p.toFixed(4);
+      if (p >= 0.01) return p.toFixed(6);
+      return p.toPrecision(4);
+    };
+
+    const fmtVol = (v) => {
+      if (!v || v <= 0) return '—';
+      if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+      if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+      if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+      return v.toFixed(0);
+    };
+
+    const fmtChg = (pct) => {
+      if (pct === null || !isFinite(pct)) return { text: '—', cls: 'flat' };
+      const cls = pct > 0.005 ? 'up' : pct < -0.005 ? 'down' : 'flat';
+      return { text: (pct > 0 ? '+' : '') + pct.toFixed(2) + '%', cls };
+    };
+
+    const fmtUptime = computed(() => {
+      const s = uptimeSec.value;
+      const pad = (n) => String(n).padStart(2, '0');
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
+    });
+
+    const applyTick = (sym, price, open, quoteVol, eventTime) => {
+      if (!sym || !isFinite(price)) return;
+      let e = marketData.get(sym);
+      const now = Date.now();
+      if (!e) {
+        e = { sym, price, open: null, vol: 0, lastP: null, dir: 0, flashAt: 0, ticks: [], history: [] };
+        marketData.set(sym, e);
+      }
+      if (e.lastP !== null && price !== e.lastP) {
+        e.dir = price > e.lastP ? 1 : -1;
+        e.flashAt = now;
+        e.ticks.push(e.dir);
+        if (e.ticks.length > 16) e.ticks.shift();
+      }
+      e.history.push({ t: eventTime, p: price, v: quoteVol });
+      if (e.history.length > HISTORY_LIMIT) e.history.shift();
+      const cutoff = now - HISTORY_TTL;
+      while (e.history.length && e.history[0].t < cutoff) e.history.shift();
+      if (isFinite(open) && open > 0) e.open = open;
+      if (isFinite(quoteVol) && quoteVol > 0) e.vol = quoteVol;
+      e.price = price;
+      e.lastP = price;
+    };
+
+    const handleMessage = (ev) => {
+      let data;
+      try { data = JSON.parse(ev.data); } catch { return; }
+      if (!Array.isArray(data)) return;
+      const now = Date.now();
+      let lag = 0;
+      for (const d of data) {
+        const t = d.E || now;
+        const l = now - t;
+        if (l >= 0 && l < 60000) lag += l;
+        applyTick(d.s, parseFloat(d.c), parseFloat(d.o), parseFloat(d.q), t);
+      }
+      entryCount += data.length;
+      if (data.length) {
+        latencySum += lag / data.length;
+        latencyN++;
+      }
+      lastMsgAt = now;
+    };
+
+    const scheduleReconnect = () => {
+      const delay = reconnectDelay + Math.random() * 500;
+      reconnectDelay = Math.min(reconnectDelay * 1.6, 15000);
+      setTimeout(connect, delay);
+    };
+
+    const connect = () => {
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      connectionStatus.value = 'connecting';
+      statusText.value = 'Connecting';
+      try {
+        ws = new WebSocket(STREAM_URL);
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      ws.onopen = () => {
+        connectionStatus.value = 'live';
+        statusText.value = 'Live';
+        reconnectDelay = 1000;
+        connectedAt = Date.now();
+        uptimeSec.value = 0;
+      };
+      ws.onmessage = handleMessage;
+      ws.onerror = () => {
+        connectionStatus.value = 'bad';
+        statusText.value = 'Error';
+      };
+      ws.onclose = () => {
+        connectionStatus.value = 'bad';
+        statusText.value = 'Reconnecting';
+        scheduleReconnect();
+      };
+    };
+
+    const filteredRows = computed(() => {
+      uiTick.value;
+      const quote = selectedQuote.value;
+      const search = searchQuery.value.trim().toUpperCase();
+      const minP = typeof minPrice.value === 'number' && isFinite(minPrice.value) ? minPrice.value : null;
+      const maxP = typeof maxPrice.value === 'number' && isFinite(maxPrice.value) ? maxPrice.value : null;
+      const now = Date.now();
+      const rows = [];
+      for (const [sym, e] of marketData) {
+        if (e.lastP === null) continue;
+        if (quote !== 'ALL' && !sym.endsWith(quote)) continue;
+        if (onlyFavs.value && !favs.has(sym)) continue;
+        if (search && !sym.includes(search)) continue;
+        if (minP !== null && e.price < minP) continue;
+        if (maxP !== null && e.price > maxP) continue;
+        const { base, quote: q } = splitSymbol(sym, quote);
+        if (!base) continue;
+        const m1s = windowMetrics(e, 1000, now);
+        const m1m = windowMetrics(e, 60000, now);
+        const chg24 = pctChange(e.price, e.open);
+        const chg1s = pctChange(e.price, m1s.price);
+        const chg1m = pctChange(e.price, m1m.price);
+        
+        const supply = baseSupplyMap.get(base) || 0;
+        const mcap = supply > 0 ? supply * e.price : 0;
+
+        rows.push({
+          sym,
+          base,
+          quote: q,
+          price: e.price,
+          chg24,
+          chg1s,
+          chg1m,
+          tps: m1s.ticks,
+          vol1s: m1s.volDelta,
+          vol1m: m1m.volDelta,
+          vol: e.vol,
+          mcap,
+          ticks: e.ticks.slice(),
+          flashCls: e.dir !== 0 && now - e.flashAt < FLASH_MS ? (e.dir === 1 ? 'flash-up' : 'flash-down') : '',
+          c24: fmtChg(chg24),
+          c1s: fmtChg(chg1s),
+          c1m: fmtChg(chg1m)
+        });
+      }
+      rows.sort((a, b) => (favs.has(b.sym) ? 1 : 0) - (favs.has(a.sym) ? 1 : 0));
+      const dir = sortDir.value;
+      const key = sortKey.value;
+      if (key === 'symbol') {
+        rows.sort((a, b) => dir * a.sym.localeCompare(b.sym));
+      } else {
+        const val = (r) => {
+          switch (key) {
+            case 'price': return r.price;
+            case 'chg24': return r.chg24 ?? -Infinity;
+            case 'chg1s': return r.chg1s ?? -Infinity;
+            case 'chg1m': return r.chg1m ?? -Infinity;
+            case 'tps': return r.tps;
+            case 'vol1s': return r.vol1s;
+            case 'vol1m': return r.vol1m;
+            case 'mcap': return r.mcap;
+            default: return r.vol;
+          }
+        };
+        rows.sort((a, b) => dir * (val(a) - val(b)));
+      }
+      return rows;
+    });
+
+    const displayedRows = computed(() => {
+      uiTick.value;
+      return filteredRows.value.slice(0, MAX_ROWS);
+    });
+
+    const leader = computed(() => {
+      uiTick.value;
+      let best = null;
+      for (const r of filteredRows.value) {
+        if (!best || r.tps > best.tps) best = r;
+      }
+      return best;
+    });
+
+    const hasFilters = computed(() => {
+      const hasPrice = (typeof minPrice.value === 'number' && isFinite(minPrice.value)) ||
+                       (typeof maxPrice.value === 'number' && isFinite(maxPrice.value));
+      return !!(searchQuery.value.trim() || hasPrice || onlyFavs.value);
+    });
+
+    const resetFilters = () => {
+      searchQuery.value = '';
+      minPrice.value = null;
+      maxPrice.value = null;
+      onlyFavs.value = false;
+    };
+
+    const sortBy = (key) => {
+      if (sortKey.value === key) {
+        sortDir.value *= -1;
+      } else {
+        sortKey.value = key;
+        sortDir.value = key === 'symbol' ? 1 : -1;
+      }
+    };
+
+    const getSortIcon = (key) => {
+      if (sortKey.value !== key) return 'bi bi-arrow-down-up opacity-25';
+      return sortDir.value === 1 ? 'bi bi-caret-up-fill' : 'bi bi-caret-down-fill';
+    };
+
+    const toggleFav = (sym) => {
+      if (favs.has(sym)) favs.delete(sym);
+      else favs.add(sym);
+      store.set('favs', [...favs]);
+    };
+
+    const isFav = (sym) => favs.has(sym);
+
+    const binanceUrl = (row) => `https://www.binance.com/en/trade/${row.base}_${row.quote}?type=spot`;
+
+    const tickStyle = (idx, len) => {
+      const rec = len <= 1 ? 1 : idx / (len - 1);
+      return {
+        height: (4 + rec * 10) + 'px',
+        opacity: (0.35 + rec * 0.65).toFixed(2)
+      };
+    };
+
+    watch(selectedQuote, v => store.set('quote', v));
+    watch(onlyFavs, v => store.set('onlyFavs', v));
+    watch(searchQuery, v => store.set('search', v));
+    watch([sortKey, sortDir], ([k, d]) => {
+      store.set('sortKey', k);
+      store.set('sortDir', d);
+    });
+
+    const onKeydown = (e) => {
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) {
+        e.preventDefault();
+        if (searchEl.value) searchEl.value.focus();
+      }
+    };
+
+    const onVisibility = () => {
+      if (!document.hidden && connectionStatus.value === 'bad') connect();
+    };
+
+    onMounted(() => {
+      connect();
+      fetchCirculatingSupply();
+      timers.push(setInterval(fetchCirculatingSupply, 300000));
+      timers.push(setInterval(() => { uiTick.value++; }, 300));
+      timers.push(setInterval(() => {
+        ups.value = entryCount;
+        entryCount = 0;
+        if (latencyN > 0) {
+          latencyMs.value = Math.max(0, Math.round(latencySum / latencyN));
+          latencySum = 0;
+          latencyN = 0;
+        }
+        totalPairs.value = marketData.size;
+        if (connectionStatus.value === 'live') {
+          uptimeSec.value = Math.round((Date.now() - connectedAt) / 1000);
+          if (Date.now() - lastMsgAt > 15000) {
+            connectionStatus.value = 'bad';
+            statusText.value = 'Stalled';
+            try { ws.close(); } catch {}
+          }
+        }
+      }, 1000));
+      timers.push(setInterval(() => {
+        const stale = Date.now() - 15 * 60 * 1000;
+        for (const [sym, e] of marketData) {
+          const last = e.history.length ? e.history[e.history.length - 1].t : 0;
+          if (last && last < stale && !favs.has(sym)) marketData.delete(sym);
+        }
+      }, 30000));
+      window.addEventListener('keydown', onKeydown);
+      document.addEventListener('visibilitychange', onVisibility);
+    });
+
+    onBeforeUnmount(() => {
+      timers.forEach(clearInterval);
+      window.removeEventListener('keydown', onKeydown);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (ws) {
+        try { ws.close(); } catch {}
+      }
+    });
+
+    return {
+      quotes: QUOTES,
+      connectionStatus, statusText, latencyMs, fmtUptime,
+      totalPairs, ups, leader,
+      searchQuery, searchEl, minPrice, maxPrice, selectedQuote, onlyFavs,
+      sortKey, sortDir, hasFilters, resetFilters,
+      filteredRows, displayedRows,
+      sortBy, getSortIcon, toggleFav, isFav,
+      fmtPrice, fmtVol, binanceUrl, tickStyle
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
