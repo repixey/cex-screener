@@ -60,20 +60,20 @@
       border-bottom:1px solid var(--border-soft);
     }
     .brand-mark{
-      width:44px;height:44px;border-radius:12px;flex:0 0 auto;
+      width:38px;height:38px;border-radius:10px;flex:0 0 auto;
       background:linear-gradient(135deg,#5A87FF,#8CB0FF);
-      display:grid;place-items:center;color:#fff;font-size:21px;
+      display:grid;place-items:center;color:#fff;font-size:18px;
       box-shadow:0 4px 16px rgba(90,135,255,.4);
     }
-    .brand-title{font-size:18px;font-weight:800;letter-spacing:.2px;color:#fff}
-    .brand-sub{font-size:12px;color:var(--faint);font-family:var(--mono);margin-top:1px}
+    .brand-title{font-size:16px;font-weight:800;letter-spacing:.2px;color:#fff}
+    .brand-sub{font-size:11px;color:var(--faint);font-family:var(--mono);margin-top:1px}
     .status-chip{
       display:inline-flex;align-items:center;gap:9px;
-      padding:8px 14px;border-radius:999px;
+      padding:6px 12px;border-radius:999px;
       border:1px solid var(--border);background:var(--card);
-      font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;
+      font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;
     }
-    .status-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
     .status-dot.live{background:var(--up);box-shadow:0 0 10px var(--up)}
     .status-dot.bad{background:var(--down);box-shadow:0 0 10px var(--down)}
     .status-dot.connecting{background:var(--warn);box-shadow:0 0 10px var(--warn);animation:blink 1.1s infinite}
@@ -82,16 +82,16 @@
       background:linear-gradient(180deg,var(--card-2),var(--card));
       border:1px solid var(--border-soft);
       border-radius:var(--radius);
-      padding:16px 18px;
-      display:flex;align-items:center;gap:14px;
+      padding:10px 14px;
+      display:flex;align-items:center;gap:12px;
       transition:border-color .2s,transform .2s;
       min-width:0;
     }
     .kpi:hover{border-color:var(--border);transform:translateY(-1px)}
-    .kpi-icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex:0 0 auto}
-    .kpi-label{font-size:11.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);font-weight:700}
-    .kpi-value{font-family:var(--mono);font-size:21px;font-weight:700;color:#fff;line-height:1.25;white-space:nowrap}
-    .kpi-sub{font-size:12px;color:var(--faint);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+    .kpi-icon{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex:0 0 auto}
+    .kpi-label{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:700}
+    .kpi-value{font-family:var(--mono);font-size:18px;font-weight:700;color:#fff;line-height:1.2;white-space:nowrap}
+    .kpi-sub{font-size:11px;color:var(--faint);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
     .panel{background:var(--card);border:1px solid var(--border-soft);border-radius:var(--radius)}
     .form-control,.form-select{
       background:var(--bg-soft);border-color:var(--border);color:var(--text);border-radius:9px;
@@ -125,34 +125,35 @@
     }
     .pairs-count-label{color:var(--muted);font-weight:500;font-family:var(--sans)}
     .table-wrap{
-      max-height:calc(100vh - 420px);min-height:380px;
+      max-height:calc(100vh - 260px);min-height:520px;
       overflow:auto;border:1px solid var(--border-soft);
       border-radius:var(--radius);background:var(--card);
       overscroll-behavior:contain;
       scrollbar-width:thin;scrollbar-color:#2A3244 transparent;
     }
     .screener{
-      margin:0;font-family:var(--mono);font-size:14px;
-      border-collapse:separate;border-spacing:0;min-width:980px;
+      margin:0;font-family:var(--mono);font-size:13px;
+      border-collapse:separate;border-spacing:0;min-width:940px;
       --bs-table-bg:transparent;
     }
     .screener thead th{
       position:sticky;top:0;z-index:5;
       background:linear-gradient(180deg,#1A2130,#141A26);
       border-bottom:1px solid var(--border);
-      color:var(--muted);font-size:11.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
-      padding:14px 16px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;
+      color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+      padding:8px 14px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;
     }
     .screener thead th:hover{color:#fff}
     .screener thead th.active{color:var(--accent-2)}
     .screener thead th.no-sort{cursor:default}
     .sort-icon{font-size:10px;margin-left:3px}
     .screener td{
-      padding:12px 16px;border-bottom:1px solid var(--border-soft);
+      padding:5px 14px;border-bottom:1px solid var(--border-soft);
       vertical-align:middle;white-space:nowrap;
-      font-size:14px;
+      font-size:13px;
+      line-height:1.3;
     }
-    .screener tbody tr{transition:background .15s}
+    .screener tbody tr{transition:background .15s, opacity .4s ease}
     .screener tbody tr:hover td{background:rgba(255,255,255,.035)}
     .screener tbody tr:last-child td{border-bottom:none}
     .coin-avatar{
@@ -161,21 +162,21 @@
     }
     .coin-avatar img{width:100%;height:100%;object-fit:cover;display:block}
     .coin-avatar-fb{color:#fff;font-weight:800;letter-spacing:-.5px;line-height:1}
-    .pair-cell{display:flex;align-items:center;gap:12px;min-width:170px}
-    .pair-name{display:flex;flex-direction:column;line-height:1.25;min-width:0}
-    .pair-base{color:#fff;font-weight:700;font-size:14.5px;text-decoration:none;font-family:var(--sans)}
+    .pair-cell{display:flex;align-items:center;gap:10px;min-width:150px}
+    .pair-name{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+    .pair-base{color:#fff;font-weight:700;font-size:13.5px;text-decoration:none;font-family:var(--sans)}
     a.pair-base{transition:color .15s}
     a.pair-base:hover{color:var(--accent-2)}
-    .pair-quote{color:var(--faint);font-size:11px;font-weight:500}
+    .pair-quote{color:var(--faint);font-size:10px;font-weight:500}
     .star-btn{
       background:none;border:none;padding:3px 5px;margin-left:auto;
-      color:var(--faint);opacity:0;line-height:1;font-size:14px;cursor:pointer;
+      color:var(--faint);opacity:0;line-height:1;font-size:13px;cursor:pointer;
       transition:opacity .15s,color .15s,transform .15s;
     }
     .screener tr:hover .star-btn{opacity:1}
     .star-btn:hover{transform:scale(1.25);color:#F0D48A}
     .star-btn.on{opacity:1;color:var(--warn)}
-    .px{font-weight:700;font-size:14.5px}
+    .px{font-weight:700;font-size:13.5px}
     .px.up{color:var(--up)}
     .px.down{color:var(--down)}
     @keyframes flashUp{0%{background:rgba(23,214,140,.3)}100%{background:transparent}}
@@ -183,14 +184,14 @@
     .flash-up{animation:flashUp .9s ease-out}
     .flash-down{animation:flashDown .9s ease-out}
     .badge-chg{
-      padding:5px 10px;border-radius:7px;font-weight:700;font-size:13px;
-      display:inline-block;min-width:76px;text-align:right;font-family:var(--mono);
+      padding:3px 9px;border-radius:6px;font-weight:700;font-size:12px;
+      display:inline-block;min-width:70px;text-align:right;font-family:var(--mono);
     }
     .badge-chg.up{color:var(--up);background:var(--up-bg)}
     .badge-chg.down{color:var(--down);background:var(--down-bg)}
     .badge-chg.flat{color:var(--muted);background:rgba(255,255,255,.06)}
     .tps-badge{
-      font-weight:800;padding:4px 11px;border-radius:7px;min-width:38px;font-size:13.5px;
+      font-weight:800;padding:3px 10px;border-radius:6px;min-width:34px;font-size:12.5px;
       display:inline-block;text-align:center;
       background:linear-gradient(135deg,rgba(90,135,255,.18),rgba(140,176,255,.09));
       color:var(--accent-2);border:1px solid rgba(90,135,255,.3);
@@ -199,9 +200,9 @@
       background:linear-gradient(135deg,rgba(244,196,48,.22),rgba(244,196,48,.09));
       color:var(--warn);border-color:rgba(244,196,48,.4);
     }
-    .vol-cell{color:var(--muted);font-size:13.5px}
-    .pulse-bar{display:inline-flex;gap:3px;align-items:flex-end;height:18px}
-    .pulse-bar i{width:3.5px;border-radius:2px;background:#333D52;transition:height .2s,opacity .2s}
+    .vol-cell{color:var(--muted);font-size:12.5px}
+    .pulse-bar{display:inline-flex;gap:3px;align-items:flex-end;height:16px}
+    .pulse-bar i{width:3px;border-radius:2px;background:#333D52;transition:height .2s,opacity .2s}
     .pulse-bar i.u{background:var(--up)}
     .pulse-bar i.d{background:var(--down)}
     .empty-state{padding:72px 20px;text-align:center;color:var(--muted)}
@@ -209,6 +210,24 @@
     .empty-state .fw-semibold{font-size:15px}
     .spinner-dim{width:2.4rem;height:2.4rem;color:var(--accent);display:block;margin:0 auto 16px}
     .app-footer{color:var(--faint);font-size:12px}
+
+    /* --- Ghost / history rows --- */
+    .row-ghost{opacity:.5;filter:grayscale(70%);}
+    .row-ghost td{color:var(--faint) !important;}
+    .row-ghost .px{color:var(--faint) !important;}
+    .row-ghost .pair-base{color:var(--faint) !important;}
+    .row-ghost .badge-chg{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;}
+    .row-ghost .tps-badge{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;border-color:var(--border-soft) !important;}
+    .row-ghost .pulse-bar i{background:#333D52 !important;}
+    .row-ghost .star-btn{pointer-events:none;opacity:.35 !important;}
+    .row-ghost .coin-avatar{filter:grayscale(100%);opacity:.7}
+    .row-ghost:hover td{background:transparent !important;}
+    .ghost-tag{
+      font-size:10px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;
+      color:var(--faint);border:1px solid var(--border-soft);border-radius:5px;
+      padding:1px 6px;margin-left:8px;white-space:nowrap;
+    }
+
     @media (max-width:1399.98px){.hide-xxl{display:none}}
     @media (max-width:1199.98px){.hide-xl{display:none}}
     @media (max-width:991.98px){.hide-lg{display:none}}
@@ -219,7 +238,7 @@
 
 <div id="app" v-cloak>
   <header class="topbar">
-    <div class="container-xxl py-3 d-flex align-items-center justify-content-between gap-3">
+    <div class="container-xxl py-2 d-flex align-items-center justify-content-between gap-3">
       <div class="d-flex align-items-center gap-3">
         <div class="brand-mark"><i class="bi bi-activity"></i></div>
         <div>
@@ -241,8 +260,8 @@
     </div>
   </header>
 
-  <main class="container-xxl py-4">
-    <section class="row g-3 mb-4">
+  <main class="container-xxl py-3">
+    <section class="row g-2 mb-3">
       <div class="col-6 col-lg-3">
         <div class="kpi h-100">
           <div class="kpi-icon" style="background:rgba(90,135,255,.16);color:#8CB0FF"><i class="bi bi-collection"></i></div>
@@ -286,7 +305,7 @@
     </section>
 
     <!-- SECTION FILTER PANEL -->
-    <section class="panel p-3 mb-4">
+    <section class="panel p-2 mb-3">
       <div class="row g-2 align-items-center">
         <!-- Search -->
         <div class="col-12 col-md-6 col-lg-3">
@@ -304,9 +323,9 @@
         <div class="col-6 col-md-6 col-lg-3">
           <div class="input-group input-group-sm">
             <span class="input-group-text font-mono"><i class="bi bi-currency-dollar"></i></span>
-            <input type="number" class="form-control font-mono" placeholder="Px min" v-model.number="minPrice" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="Px min" v-model="minPrice" inputmode="decimal">
             <span class="input-group-text">–</span>
-            <input type="number" class="form-control font-mono" placeholder="Px max" v-model.number="maxPrice" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="Px max" v-model="maxPrice" inputmode="decimal">
           </div>
         </div>
 
@@ -314,9 +333,9 @@
         <div class="col-6 col-md-6 col-lg-3">
           <div class="input-group input-group-sm" title="Volume over last 1 minute">
             <span class="input-group-text font-mono"><i class="bi bi-bar-chart-fill"></i></span>
-            <input type="number" class="form-control font-mono" placeholder="Vol 1m min" v-model.number="minVol1m" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="Vol 1m min" v-model="minVol1m" inputmode="decimal">
             <span class="input-group-text">–</span>
-            <input type="number" class="form-control font-mono" placeholder="max" v-model.number="maxVol1m" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxVol1m" inputmode="decimal">
           </div>
         </div>
 
@@ -324,19 +343,19 @@
         <div class="col-6 col-md-6 col-lg-3">
           <div class="input-group input-group-sm" title="Price change over last 1 minute">
             <span class="input-group-text font-mono"><i class="bi bi-percent"></i></span>
-            <input type="number" class="form-control font-mono" placeholder="1m% min" v-model.number="minChg1m" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="1m% min" v-model="minChg1m" inputmode="decimal">
             <span class="input-group-text">–</span>
-            <input type="number" class="form-control font-mono" placeholder="max" v-model.number="maxChg1m" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxChg1m" inputmode="decimal">
           </div>
         </div>
 
-        <!-- MCap Min / Max -->
+        <!-- 24h Volume Min / Max -->
         <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Estimated Market Cap">
-            <span class="input-group-text font-mono"><i class="bi bi-pie-chart-fill"></i></span>
-            <input type="number" class="form-control font-mono" placeholder="MCap min" v-model.number="minMcap" step="any" inputmode="decimal">
+          <div class="input-group input-group-sm" title="Traded volume in last 24 hours">
+            <span class="input-group-text font-mono"><i class="bi bi-clock-history"></i></span>
+            <input type="text" class="form-control font-mono" placeholder="Vol 24h min" v-model="minVol24h" inputmode="decimal">
             <span class="input-group-text">–</span>
-            <input type="number" class="form-control font-mono" placeholder="max" v-model.number="maxMcap" step="any" inputmode="decimal">
+            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxVol24h" inputmode="decimal">
           </div>
         </div>
 
@@ -377,8 +396,8 @@
             <th class="text-end hide-lg" @click="sortBy('vol1m')" :class="{ active: sortKey === 'vol1m' }" title="Traded volume in last minute">
               Vol 1m <i class="sort-icon" :class="getSortIcon('vol1m')"></i>
             </th>
-            <th class="text-end hide-xl" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Estimated Market Cap">
-              MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
+            <th class="text-end hide-xl" @click="sortBy('vol24h')" :class="{ active: sortKey === 'vol24h' }" title="Traded volume in last 24 hours">
+              24h Vol <i class="sort-icon" :class="getSortIcon('vol24h')"></i>
             </th>
             <th class="text-end" @click="sortBy('tps')" :class="{ active: sortKey === 'tps' }" title="Ticker updates per second">
               TPS <i class="sort-icon" :class="getSortIcon('tps')"></i>
@@ -407,16 +426,19 @@
               </div>
             </td>
           </tr>
-          <tr v-for="row in displayedRows" :key="row.sym">
+          <tr v-for="row in displayedRows" :key="row.sym"
+              :class="{ 'row-ghost': row.isGhost }"
+              :title="row.isGhost ? 'Больше не соответствует фильтрам — остаётся в истории' : null">
             <td>
               <div class="pair-cell">
-                <coin-icon :symbol="row.base" :size="32"></coin-icon>
+                <coin-icon :symbol="row.base" :size="24"></coin-icon>
                 <div class="pair-name">
-                  <a v-if="row.quote" class="pair-base" :href="binanceUrl(row)" target="_blank" rel="noopener">{{ row.base }}</a>
+                  <a v-if="row.quote && !row.isGhost" class="pair-base" :href="binanceUrl(row)" target="_blank" rel="noopener">{{ row.base }}</a>
                   <span v-else class="pair-base">{{ row.base }}</span>
                   <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
                 </div>
-                <button class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
+                <span v-if="row.isGhost" class="ghost-tag">history</span>
+                <button v-else class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
                         @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
                   <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
                 </button>
@@ -429,7 +451,7 @@
             </td>
             <td class="text-end"><span class="badge-chg" :class="row.c1m.cls">{{ row.c1m.text }}</span></td>
             <td class="text-end vol-cell hide-lg">{{ fmtVol(row.vol1m) }}</td>
-            <td class="text-end vol-cell hide-xl">{{ fmtVol(row.mcap) }}</td>
+            <td class="text-end vol-cell hide-xl">{{ fmtVol(row.vol24h) }}</td>
             <td class="text-end"><span class="tps-badge" :class="{ 'tps-hot': row.tps >= 3 }">{{ row.tps }}</span></td>
             <td class="text-end hide-md">
               <div v-if="row.ticks.length" class="pulse-bar">
@@ -457,11 +479,12 @@ const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount } 
 
 const STREAM_URL = 'wss://stream.binance.com:9443/ws/!miniTicker@arr';
 const QUOTES = ['USDT', 'FDUSD', 'USDC', 'TUSD', 'BTC', 'ETH', 'BNB', 'TRY', 'EUR', 'DAI'];
-const MAX_ROWS = 150;
+const MAX_ROWS = 2000;
 const HISTORY_LIMIT = 240;
 const HISTORY_TTL = 95000;
 const FLASH_MS = 950;
 const STORAGE_PREFIX = 'screener:';
+const MAX_GHOST_ROWS = 300;
 
 const store = {
   get(key, fallback) {
@@ -544,7 +567,7 @@ createApp({
   components: { 'coin-icon': CoinIcon },
   setup() {
     const marketData = new Map();
-    const baseSupplyMap = new Map();
+    const vol24hMap = new Map();
     const favs = reactive(new Set(store.get('favs', [])));
     const uiTick = ref(0);
     const totalPairs = ref(0);
@@ -569,14 +592,16 @@ createApp({
     const minChg1m = ref(null);
     const maxChg1m = ref(null);
 
-    // MCap Filters
-    const minMcap = ref(null);
-    const maxMcap = ref(null);
+    // 24-Hour Volume Filters (vol24h)
+    const minVol24h = ref(null);
+    const maxVol24h = ref(null);
 
     const onlyFavs = ref(store.get('onlyFavs', false));
     const sortKey = ref(store.get('sortKey', 'vol1m'));
     const sortDir = ref(store.get('sortDir', -1));
     const searchEl = ref(null);
+
+    const filterMemory = new Map();
 
     let ws = null;
     let reconnectDelay = 1000;
@@ -587,26 +612,19 @@ createApp({
     let connectedAt = 0;
     const timers = [];
 
-    const fetchCirculatingSupply = async () => {
+    const fetchVolume24h = async () => {
       try {
         const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
         if (!res.ok) return;
         const tickers = await res.json();
         for (const t of tickers) {
-          const sym = t.symbol;
           const quoteVol = parseFloat(t.quoteVolume);
-          const lastPrice = parseFloat(t.lastPrice);
-          if (quoteVol > 0 && lastPrice > 0) {
-            const baseVol = quoteVol / lastPrice;
-            const quote = QUOTES.find(q => sym.endsWith(q));
-            if (quote) {
-              const base = sym.slice(0, -quote.length);
-              if (base) baseSupplyMap.set(base, baseVol * 1500);
-            }
+          if (isFinite(quoteVol) && quoteVol >= 0) {
+            vol24hMap.set(t.symbol, quoteVol);
           }
         }
       } catch (err) {
-        console.warn('Failed to fetch market cap supply data:', err);
+        console.warn('Failed to fetch 24h volume data:', err);
       }
     };
 
@@ -643,10 +661,15 @@ createApp({
 
     const fmtPrice = (p) => {
       if (p === null || p === undefined || !isFinite(p)) return '—';
-      if (p >= 1000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      if (p >= 1) return p.toFixed(4);
-      if (p >= 0.01) return p.toFixed(6);
-      return p.toPrecision(4);
+      if (p === 0) return '0';
+      const abs = Math.abs(p);
+      if (abs >= 1000) return p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (abs >= 1) return p.toFixed(4);
+      if (abs >= 0.01) return p.toFixed(6);
+      const exp = Math.floor(Math.log10(abs));
+      const sigDigits = 4;
+      const decimals = Math.min(18, Math.max(6, -exp - 1 + sigDigits));
+      return p.toFixed(decimals);
     };
 
     const fmtVol = (v) => {
@@ -749,23 +772,10 @@ createApp({
       };
     };
 
-    const filteredRows = computed(() => {
+    const baseFilteredRows = computed(() => {
       uiTick.value;
       const quote = selectedQuote.value;
       const search = searchQuery.value.trim().toUpperCase();
-
-      const minP = typeof minPrice.value === 'number' && isFinite(minPrice.value) ? minPrice.value : null;
-      const maxP = typeof maxPrice.value === 'number' && isFinite(maxPrice.value) ? maxPrice.value : null;
-
-      const minV1m = typeof minVol1m.value === 'number' && isFinite(minVol1m.value) ? minVol1m.value : null;
-      const maxV1m = typeof maxVol1m.value === 'number' && isFinite(maxVol1m.value) ? maxVol1m.value : null;
-
-      const minC1m = typeof minChg1m.value === 'number' && isFinite(minChg1m.value) ? minChg1m.value : null;
-      const maxC1m = typeof maxChg1m.value === 'number' && isFinite(maxChg1m.value) ? maxChg1m.value : null;
-
-      const minM = typeof minMcap.value === 'number' && isFinite(minMcap.value) ? minMcap.value : null;
-      const maxM = typeof maxMcap.value === 'number' && isFinite(maxMcap.value) ? maxMcap.value : null;
-
       const now = Date.now();
       const rows = [];
       for (const [sym, e] of marketData) {
@@ -774,32 +784,13 @@ createApp({
         if (onlyFavs.value && !favs.has(sym)) continue;
         if (search && !sym.includes(search)) continue;
 
-        // Price Filter
-        if (minP !== null && e.price < minP) continue;
-        if (maxP !== null && e.price > maxP) continue;
-
         const { base, quote: q } = splitSymbol(sym, quote);
         if (!base) continue;
 
         const m1s = windowMetrics(e, 1000, now);
         const m1m = windowMetrics(e, 60000, now);
-
-        // 1-Minute Volume Filter (vol1m)
-        if (minV1m !== null && m1m.volDelta < minV1m) continue;
-        if (maxV1m !== null && m1m.volDelta > maxV1m) continue;
-
         const chg1m = pctChange(e.price, m1m.price);
-
-        // 1-Minute % Change Filter (chg1m)
-        if (minC1m !== null && (chg1m === null || chg1m < minC1m)) continue;
-        if (maxC1m !== null && (chg1m === null || chg1m > maxC1m)) continue;
-
-        const supply = baseSupplyMap.get(base) || 0;
-        const mcap = supply > 0 ? supply * e.price : 0;
-
-        // MCap Filter
-        if (minM !== null && mcap < minM) continue;
-        if (maxM !== null && mcap > maxM) continue;
+        const vol24h = vol24hMap.get(sym) || 0;
 
         rows.push({
           sym,
@@ -809,12 +800,16 @@ createApp({
           chg1m,
           tps: m1s.ticks,
           vol1m: m1m.volDelta,
-          mcap,
+          vol24h,
           ticks: e.ticks.slice(),
           flashCls: e.dir !== 0 && now - e.flashAt < FLASH_MS ? (e.dir === 1 ? 'flash-up' : 'flash-down') : '',
           c1m: fmtChg(chg1m)
         });
       }
+      return rows;
+    });
+
+    const applySort = (rows) => {
       rows.sort((a, b) => (favs.has(b.sym) ? 1 : 0) - (favs.has(a.sym) ? 1 : 0));
       const dir = sortDir.value;
       const key = sortKey.value;
@@ -826,18 +821,77 @@ createApp({
             case 'price': return r.price;
             case 'chg1m': return r.chg1m ?? -Infinity;
             case 'tps': return r.tps;
-            case 'mcap': return r.mcap;
+            case 'vol24h': return r.vol24h;
             default: return r.vol1m;
           }
         };
         rows.sort((a, b) => dir * (val(a) - val(b)));
       }
       return rows;
+    };
+
+    const parseNum = (val) => {
+      if (val === null || val === '' || val === undefined) return null;
+      const parsed = parseFloat(String(val).replace(',', '.'));
+      return isFinite(parsed) ? parsed : null;
+    };
+
+    const filteredRows = computed(() => {
+      const minP = parseNum(minPrice.value);
+      const maxP = parseNum(maxPrice.value);
+      const minV1m = parseNum(minVol1m.value);
+      const maxV1m = parseNum(maxVol1m.value);
+      const minC1m = parseNum(minChg1m.value);
+      const maxC1m = parseNum(maxChg1m.value);
+      const minV24 = parseNum(minVol24h.value);
+      const maxV24 = parseNum(maxVol24h.value);
+
+      const rows = baseFilteredRows.value.filter(r => {
+        if (minP !== null && r.price < minP) return false;
+        if (maxP !== null && r.price > maxP) return false;
+        if (minV1m !== null && r.vol1m < minV1m) return false;
+        if (maxV1m !== null && r.vol1m > maxV1m) return false;
+        if (minC1m !== null && (r.chg1m === null || Math.abs(r.chg1m) < minC1m)) return false;
+        if (maxC1m !== null && (r.chg1m === null || Math.abs(r.chg1m) > maxC1m)) return false;
+        if (minV24 !== null && r.vol24h < minV24) return false;
+        if (maxV24 !== null && r.vol24h > maxV24) return false;
+        return true;
+      });
+
+      return applySort(rows);
     });
 
     const displayedRows = computed(() => {
       uiTick.value;
-      return filteredRows.value.slice(0, MAX_ROWS);
+      const now = Date.now();
+      const matched = filteredRows.value;
+      const matchedSyms = new Set(matched.map(r => r.sym));
+      const baseMap = new Map(baseFilteredRows.value.map(r => [r.sym, r]));
+
+      for (const row of matched) {
+        const mem = filterMemory.get(row.sym) || {};
+        mem.lastMatchAt = now;
+        filterMemory.set(row.sym, mem);
+      }
+
+      for (const sym of Array.from(filterMemory.keys())) {
+        if (!baseMap.has(sym)) filterMemory.delete(sym);
+      }
+
+      let ghostRows = [];
+      for (const [sym, mem] of filterMemory) {
+        if (!matchedSyms.has(sym)) {
+          const row = baseMap.get(sym);
+          if (row) ghostRows.push({ ...row, isGhost: true, flashCls: '', lastMatchAt: mem.lastMatchAt });
+        }
+      }
+      if (ghostRows.length > MAX_GHOST_ROWS) {
+        ghostRows.sort((a, b) => b.lastMatchAt - a.lastMatchAt);
+        ghostRows = ghostRows.slice(0, MAX_GHOST_ROWS);
+      }
+      ghostRows = applySort(ghostRows);
+
+      return matched.concat(ghostRows).slice(0, MAX_ROWS + MAX_GHOST_ROWS);
     });
 
     const leader = computed(() => {
@@ -850,16 +904,12 @@ createApp({
     });
 
     const hasFilters = computed(() => {
-      const hasPrice = (typeof minPrice.value === 'number' && isFinite(minPrice.value)) ||
-                       (typeof maxPrice.value === 'number' && isFinite(maxPrice.value));
-      const hasVol1m = (typeof minVol1m.value === 'number' && isFinite(minVol1m.value)) ||
-                       (typeof maxVol1m.value === 'number' && isFinite(maxVol1m.value));
-      const hasChg1m = (typeof minChg1m.value === 'number' && isFinite(minChg1m.value)) ||
-                       (typeof maxChg1m.value === 'number' && isFinite(maxChg1m.value));
-      const hasMcap = (typeof minMcap.value === 'number' && isFinite(minMcap.value)) ||
-                       (typeof maxMcap.value === 'number' && isFinite(maxMcap.value));
+      const hasPrice = parseNum(minPrice.value) !== null || parseNum(maxPrice.value) !== null;
+      const hasVol1m = parseNum(minVol1m.value) !== null || parseNum(maxVol1m.value) !== null;
+      const hasChg1m = parseNum(minChg1m.value) !== null || parseNum(maxChg1m.value) !== null;
+      const hasVol24h = parseNum(minVol24h.value) !== null || parseNum(maxVol24h.value) !== null;
 
-      return !!(searchQuery.value.trim() || hasPrice || hasVol1m || hasChg1m || hasMcap || onlyFavs.value);
+      return !!(searchQuery.value.trim() || hasPrice || hasVol1m || hasChg1m || hasVol24h || onlyFavs.value);
     });
 
     const resetFilters = () => {
@@ -870,8 +920,8 @@ createApp({
       maxVol1m.value = null;
       minChg1m.value = null;
       maxChg1m.value = null;
-      minMcap.value = null;
-      maxMcap.value = null;
+      minVol24h.value = null;
+      maxVol24h.value = null;
       onlyFavs.value = false;
     };
 
@@ -902,7 +952,7 @@ createApp({
     const tickStyle = (idx, len) => {
       const rec = len <= 1 ? 1 : idx / (len - 1);
       return {
-        height: (5 + rec * 12) + 'px',
+        height: (4 + rec * 10) + 'px',
         opacity: (0.35 + rec * 0.65).toFixed(2)
       };
     };
@@ -913,6 +963,10 @@ createApp({
     watch([sortKey, sortDir], ([k, d]) => {
       store.set('sortKey', k);
       store.set('sortDir', d);
+    });
+
+    watch([minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minVol24h, maxVol24h], () => {
+      filterMemory.clear();
     });
 
     const onKeydown = (e) => {
@@ -929,8 +983,8 @@ createApp({
 
     onMounted(() => {
       connect();
-      fetchCirculatingSupply();
-      timers.push(setInterval(fetchCirculatingSupply, 300000));
+      fetchVolume24h();
+      timers.push(setInterval(fetchVolume24h, 300000));
       timers.push(setInterval(() => { uiTick.value++; }, 300));
       timers.push(setInterval(() => {
         ups.value = entryCount;
@@ -974,7 +1028,7 @@ createApp({
       quotes: QUOTES,
       connectionStatus, statusText, latencyMs, fmtUptime,
       totalPairs, ups, leader,
-      searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minMcap, maxMcap, selectedQuote, onlyFavs,
+      searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minVol24h, maxVol24h, selectedQuote, onlyFavs,
       sortKey, sortDir, hasFilters, resetFilters,
       filteredRows, displayedRows,
       sortBy, getSortIcon, toggleFav, isFav,
