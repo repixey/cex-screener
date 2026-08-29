@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0B0E14">
   <meta name="description" content="Real-time crypto screener with tick-per-second metrics and short-window volumes">
-  <title>Live Screener — TPS & Short Volumes</title>
+  <title>Live Screener — MCap & Short Volumes</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B0E14'/%3E%3Cpath d='M12 42 L24 28 L32 34 L46 16' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M40 16 h6 v6' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://stream.binance.com">
   <link rel="preconnect" href="https://assets.coincap.io" crossorigin>
   <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+  <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
+  <link rel="preconnect" href="https://api.coinpaprika.com" crossorigin>
+  <link rel="preconnect" href="https://static.coinpaprika.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -190,13 +193,13 @@
     .badge-chg.up{color:var(--up);background:var(--up-bg)}
     .badge-chg.down{color:var(--down);background:var(--down-bg)}
     .badge-chg.flat{color:var(--muted);background:rgba(255,255,255,.06)}
-    .tps-badge{
-      font-weight:800;padding:3px 10px;border-radius:6px;min-width:34px;font-size:12.5px;
+    .mcap-badge{
+      font-weight:800;padding:3px 10px;border-radius:6px;min-width:64px;font-size:12.5px;
       display:inline-block;text-align:center;
       background:linear-gradient(135deg,rgba(90,135,255,.18),rgba(140,176,255,.09));
       color:var(--accent-2);border:1px solid rgba(90,135,255,.3);
     }
-    .tps-badge.tps-hot{
+    .mcap-badge.mcap-hot{
       background:linear-gradient(135deg,rgba(244,196,48,.22),rgba(244,196,48,.09));
       color:var(--warn);border-color:rgba(244,196,48,.4);
     }
@@ -217,7 +220,7 @@
     .row-ghost .px{color:var(--faint) !important;}
     .row-ghost .pair-base{color:var(--faint) !important;}
     .row-ghost .badge-chg{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;}
-    .row-ghost .tps-badge{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;border-color:var(--border-soft) !important;}
+    .row-ghost .mcap-badge{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;border-color:var(--border-soft) !important;}
     .row-ghost .pulse-bar i{background:#333D52 !important;}
     .row-ghost .star-btn{pointer-events:none;opacity:.35 !important;}
     .row-ghost .coin-avatar{filter:grayscale(100%);opacity:.7}
@@ -243,7 +246,7 @@
         <div class="brand-mark"><i class="bi bi-activity"></i></div>
         <div>
           <div class="brand-title">Live Screener</div>
-          <div class="brand-sub">TPS & high-frequency stream</div>
+          <div class="brand-sub">MCap & high-frequency stream</div>
         </div>
       </div>
       <div class="d-flex align-items-center gap-2">
@@ -286,9 +289,9 @@
         <div class="kpi h-100">
           <div class="kpi-icon" style="background:rgba(244,196,48,.16);color:#F4C430"><i class="bi bi-fire"></i></div>
           <div class="flex-grow-1" style="min-width:0">
-            <div class="kpi-label">Hottest TPS</div>
+            <div class="kpi-label">Top Market Cap</div>
             <div class="kpi-value text-truncate">{{ leader ? leader.base : '—' }}</div>
-            <div class="kpi-sub">{{ leader ? leader.tps + ' ticks/s' : 'waiting for data' }}</div>
+            <div class="kpi-sub">{{ leader ? fmtMCap(leader.mcap) : 'waiting for data' }}</div>
           </div>
         </div>
       </div>
@@ -349,6 +352,16 @@
           </div>
         </div>
 
+        <!-- 5m % Change Min / Max -->
+        <div class="col-6 col-md-6 col-lg-3">
+          <div class="input-group input-group-sm" title="Price change over last 5 minutes">
+            <span class="input-group-text font-mono"><i class="bi bi-percent"></i></span>
+            <input type="text" class="form-control font-mono" placeholder="5m% min" v-model="minChg5m" inputmode="decimal">
+            <span class="input-group-text">–</span>
+            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxChg5m" inputmode="decimal">
+          </div>
+        </div>
+
         <!-- 24h Volume Min / Max -->
         <div class="col-6 col-md-6 col-lg-3">
           <div class="input-group input-group-sm" title="Traded volume in last 24 hours">
@@ -393,14 +406,17 @@
             <th class="text-end" @click="sortBy('chg1m')" :class="{ active: sortKey === 'chg1m' }" title="Change over 1 minute">
               1m % <i class="sort-icon" :class="getSortIcon('chg1m')"></i>
             </th>
+            <th class="text-end" @click="sortBy('chg5m')" :class="{ active: sortKey === 'chg5m' }" title="Change over 5 minutes">
+              5m % <i class="sort-icon" :class="getSortIcon('chg5m')"></i>
+            </th>
             <th class="text-end hide-lg" @click="sortBy('vol1m')" :class="{ active: sortKey === 'vol1m' }" title="Traded volume in last minute">
               Vol 1m <i class="sort-icon" :class="getSortIcon('vol1m')"></i>
             </th>
             <th class="text-end hide-xl" @click="sortBy('vol24h')" :class="{ active: sortKey === 'vol24h' }" title="Traded volume in last 24 hours">
               24h Vol <i class="sort-icon" :class="getSortIcon('vol24h')"></i>
             </th>
-            <th class="text-end" @click="sortBy('tps')" :class="{ active: sortKey === 'tps' }" title="Ticker updates per second">
-              TPS <i class="sort-icon" :class="getSortIcon('tps')"></i>
+            <th class="text-end" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Aggregated market cap (CoinGecko + CoinPaprika average, not from Binance)">
+              MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
             </th>
             <th class="text-end no-sort hide-md" title="Last tick directions">
               <i class="bi bi-graph-up-arrow"></i>
@@ -409,7 +425,7 @@
         </thead>
         <tbody>
           <tr v-if="displayedRows.length === 0">
-            <td colspan="7">
+            <td colspan="8">
               <div class="empty-state">
                 <template v-if="connectionStatus !== 'live'">
                   <div class="spinner-border spinner-dim" role="status"></div>
@@ -450,9 +466,10 @@
               </span>
             </td>
             <td class="text-end"><span class="badge-chg" :class="row.c1m.cls">{{ row.c1m.text }}</span></td>
+            <td class="text-end"><span class="badge-chg" :class="row.c5m.cls">{{ row.c5m.text }}</span></td>
             <td class="text-end vol-cell hide-lg">{{ fmtVol(row.vol1m) }}</td>
             <td class="text-end vol-cell hide-xl">{{ fmtVol(row.vol24h) }}</td>
-            <td class="text-end"><span class="tps-badge" :class="{ 'tps-hot': row.tps >= 3 }">{{ row.tps }}</span></td>
+            <td class="text-end"><span class="mcap-badge" :class="{ 'mcap-hot': row.mcap >= 1e9 }">{{ fmtMCap(row.mcap) }}</span></td>
             <td class="text-end hide-md">
               <div v-if="row.ticks.length" class="pulse-bar">
                 <i v-for="(t, idx) in row.ticks" :key="idx"
@@ -480,8 +497,10 @@ const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount } 
 const STREAM_URL = 'wss://stream.binance.com:9443/ws/!miniTicker@arr';
 const QUOTES = ['USDT', 'FDUSD', 'USDC', 'TUSD', 'BTC', 'ETH', 'BNB', 'TRY', 'EUR', 'DAI'];
 const MAX_ROWS = 2000;
-const HISTORY_LIMIT = 240;
-const HISTORY_TTL = 95000;
+// miniTicker@arr broadcasts ~once/sec per symbol, so 5min ≈ 300 ticks;
+// keep some headroom above that on both the count cap and the time cutoff.
+const HISTORY_LIMIT = 340;
+const HISTORY_TTL = 320000;
 const FLASH_MS = 950;
 const STORAGE_PREFIX = 'screener:';
 const MAX_GHOST_ROWS = 300;
@@ -506,8 +525,6 @@ const hashHue = (str) => {
   return h % 360;
 };
 
-const iconPref = new Map();
-
 const iconSources = (sym) => {
   const s = sym.toLowerCase();
   return [
@@ -518,16 +535,181 @@ const iconSources = (sym) => {
   ];
 };
 
+/* --- Multi-source dynamic icon map (CoinGecko + CoinPaprika) ---
+   Fetched once per session (cached 24h in localStorage) and used as the
+   highest-priority icon source before falling back to the legacy static
+   repos above, and finally to the letter avatar. Reactive so avatars that
+   are already showing a fallback upgrade automatically once data lands. */
+const iconMap = reactive(new Map());
+const ICON_CACHE_KEY = 'iconMap:v1';
+const ICON_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+/* --- Aggregated market-cap map (CoinGecko + CoinPaprika) ---
+   Deliberately NOT sourced from Binance: Binance only ever reports 24h
+   quote volume per pair, not real circulating-supply market cap, so any
+   "cap" derived from it is wrong. Instead every symbol's cap is collected
+   from each source separately (entry.cg / entry.pp) and the displayed
+   value is the average of whichever sources actually reported it — a
+   simple but honest aggregation across independent data providers. */
+const mcapMap = reactive(new Map()); // symbol -> { cg?: number, pp?: number }
+const MCAP_CACHE_KEY = 'mcapMap:v1';
+const MCAP_CACHE_TTL = 5 * 60 * 1000; // caps move with price, keep this short
+
+const loadIconCache = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + ICON_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.ts || !parsed.data || Date.now() - parsed.ts > ICON_CACHE_TTL) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const saveIconCache = () => {
+  try {
+    const data = Object.fromEntries(iconMap);
+    localStorage.setItem(STORAGE_PREFIX + ICON_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+  } catch {}
+};
+
+const loadMcapCache = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + MCAP_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.ts || !parsed.data || Date.now() - parsed.ts > MCAP_CACHE_TTL) return null;
+    return parsed.data;
+  } catch {
+    return null;
+  }
+};
+
+const saveMcapCache = () => {
+  try {
+    const data = Object.fromEntries(mcapMap);
+    localStorage.setItem(STORAGE_PREFIX + MCAP_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+  } catch {}
+};
+
+const setMcapSource = (sym, source, value) => {
+  if (!sym || !isFinite(value) || value <= 0) return;
+  const entry = mcapMap.get(sym) || {};
+  entry[source] = value;
+  mcapMap.set(sym, entry);
+};
+
+// Averages every source that reported a cap for this symbol. Returns null
+// when nobody has data for it yet (never falls back to Binance volume).
+const getAggregatedMcap = (sym) => {
+  const entry = mcapMap.get((sym || '').toUpperCase());
+  if (!entry) return null;
+  const vals = Object.values(entry).filter((v) => isFinite(v) && v > 0);
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+};
+
+// Top ~1000 coins by market cap. Sorted order means the first hit for a
+// given ticker (e.g. multiple "SAFE" tokens) is the highest-cap one.
+// Also the primary source for aggregated market cap.
+const fetchCoinGeckoMarketData = async () => {
+  for (let page = 1; page <= 4; page++) {
+    try {
+      const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`);
+      if (!res.ok) break;
+      const coins = await res.json();
+      if (!Array.isArray(coins) || !coins.length) break;
+      for (const c of coins) {
+        const sym = (c.symbol || '').toUpperCase();
+        if (sym && c.image && !iconMap.has(sym)) iconMap.set(sym, c.image);
+        if (sym && c.market_cap) setMcapSource(sym, 'cg', c.market_cap);
+      }
+      if (coins.length < 250) break;
+    } catch (err) {
+      console.warn('CoinGecko market data fetch failed:', err);
+      break;
+    }
+    // gentle pacing to stay under the free-tier rate limit
+    await new Promise((r) => setTimeout(r, 350));
+  }
+};
+
+// Fills in icon gaps for coins CoinGecko's top-1000 didn't cover.
+const fetchCoinPaprikaIcons = async () => {
+  try {
+    const res = await fetch('https://api.coinpaprika.com/v1/coins');
+    if (!res.ok) return;
+    const coins = await res.json();
+    if (!Array.isArray(coins)) return;
+    for (const c of coins) {
+      if (c.is_active === false) continue;
+      const sym = (c.symbol || '').toUpperCase();
+      if (sym && c.id && !iconMap.has(sym)) {
+        iconMap.set(sym, `https://static.coinpaprika.com/coin/${c.id}/logo.png`);
+      }
+    }
+  } catch (err) {
+    console.warn('CoinPaprika icon fetch failed:', err);
+  }
+};
+
+// Second independent market-cap source, used both to fill gaps and to
+// average against CoinGecko for symbols both providers cover.
+const fetchCoinPaprikaMarketCaps = async () => {
+  try {
+    const res = await fetch('https://api.coinpaprika.com/v1/tickers?quotes=USD');
+    if (!res.ok) return;
+    const tickers = await res.json();
+    if (!Array.isArray(tickers)) return;
+    for (const t of tickers) {
+      const sym = (t.symbol || '').toUpperCase();
+      const mc = t.quotes && t.quotes.USD && t.quotes.USD.market_cap;
+      if (sym && mc) setMcapSource(sym, 'pp', mc);
+    }
+  } catch (err) {
+    console.warn('CoinPaprika market cap fetch failed:', err);
+  }
+};
+
+const refreshMarketCaps = async () => {
+  await fetchCoinGeckoMarketData();
+  await fetchCoinPaprikaMarketCaps();
+  if (mcapMap.size) saveMcapCache();
+};
+
+const initMarketData = async () => {
+  const cachedIcons = loadIconCache();
+  if (cachedIcons) for (const [sym, url] of Object.entries(cachedIcons)) iconMap.set(sym, url);
+
+  const cachedMcap = loadMcapCache();
+  if (cachedMcap) for (const [sym, entry] of Object.entries(cachedMcap)) mcapMap.set(sym, entry);
+
+  await fetchCoinGeckoMarketData();
+  await fetchCoinPaprikaIcons();
+  await fetchCoinPaprikaMarketCaps();
+  if (iconMap.size) saveIconCache();
+  if (mcapMap.size) saveMcapCache();
+};
+
+initMarketData();
+
 const CoinIcon = {
   props: {
     symbol: { type: String, required: true },
     size: { type: Number, default: 32 }
   },
   data() {
-    return { idx: iconPref.get(this.symbol) ?? 0, failed: false };
+    return { idx: 0, failed: false };
   },
   computed: {
-    src() { return iconSources(this.symbol)[this.idx]; },
+    // Dynamic source (CoinGecko/CoinPaprika) always tried first when available,
+    // then the legacy static-repo list, then the generated letter avatar.
+    sources() {
+      const dyn = iconMap.get(this.symbol.toUpperCase());
+      return dyn ? [dyn, ...iconSources(this.symbol)] : iconSources(this.symbol);
+    },
+    src() { return this.sources[this.idx]; },
     label() {
       const s = this.symbol;
       return s.length <= 4 ? s : s.slice(0, 3);
@@ -547,9 +729,8 @@ const CoinIcon = {
   },
   methods: {
     onError() {
-      if (this.idx + 1 < iconSources(this.symbol).length) {
+      if (this.idx + 1 < this.sources.length) {
         this.idx++;
-        iconPref.set(this.symbol, this.idx);
       } else {
         this.failed = true;
       }
@@ -592,12 +773,17 @@ createApp({
     const minChg1m = ref(null);
     const maxChg1m = ref(null);
 
+    // 5-Minute Price Change Filters (chg5m)
+    const minChg5m = ref(null);
+    const maxChg5m = ref(null);
+
     // 24-Hour Volume Filters (vol24h)
     const minVol24h = ref(null);
     const maxVol24h = ref(null);
 
     const onlyFavs = ref(store.get('onlyFavs', false));
     const sortKey = ref(store.get('sortKey', 'vol1m'));
+    if (sortKey.value === 'tps') sortKey.value = 'mcap';
     const sortDir = ref(store.get('sortDir', -1));
     const searchEl = ref(null);
 
@@ -678,6 +864,15 @@ createApp({
       if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
       if (v >= 1e3) return (v / 1e3).toFixed(1) + 'K';
       return v.toFixed(0);
+    };
+
+    const fmtMCap = (v) => {
+      if (!v || v <= 0) return '—';
+      if (v >= 1e12) return '$' + (v / 1e12).toFixed(2) + 'T';
+      if (v >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B';
+      if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+      if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'K';
+      return '$' + v.toFixed(0);
     };
 
     const fmtChg = (pct) => {
@@ -787,9 +982,10 @@ createApp({
         const { base, quote: q } = splitSymbol(sym, quote);
         if (!base) continue;
 
-        const m1s = windowMetrics(e, 1000, now);
         const m1m = windowMetrics(e, 60000, now);
+        const m5m = windowMetrics(e, 300000, now);
         const chg1m = pctChange(e.price, m1m.price);
+        const chg5m = pctChange(e.price, m5m.price);
         const vol24h = vol24hMap.get(sym) || 0;
 
         rows.push({
@@ -798,12 +994,14 @@ createApp({
           quote: q,
           price: e.price,
           chg1m,
-          tps: m1s.ticks,
+          chg5m,
+          mcap: getAggregatedMcap(base),
           vol1m: m1m.volDelta,
           vol24h,
           ticks: e.ticks.slice(),
           flashCls: e.dir !== 0 && now - e.flashAt < FLASH_MS ? (e.dir === 1 ? 'flash-up' : 'flash-down') : '',
-          c1m: fmtChg(chg1m)
+          c1m: fmtChg(chg1m),
+          c5m: fmtChg(chg5m)
         });
       }
       return rows;
@@ -820,7 +1018,8 @@ createApp({
           switch (key) {
             case 'price': return r.price;
             case 'chg1m': return r.chg1m ?? -Infinity;
-            case 'tps': return r.tps;
+            case 'chg5m': return r.chg5m ?? -Infinity;
+            case 'mcap': return r.mcap ?? -Infinity;
             case 'vol24h': return r.vol24h;
             default: return r.vol1m;
           }
@@ -843,6 +1042,8 @@ createApp({
       const maxV1m = parseNum(maxVol1m.value);
       const minC1m = parseNum(minChg1m.value);
       const maxC1m = parseNum(maxChg1m.value);
+      const minC5m = parseNum(minChg5m.value);
+      const maxC5m = parseNum(maxChg5m.value);
       const minV24 = parseNum(minVol24h.value);
       const maxV24 = parseNum(maxVol24h.value);
 
@@ -853,6 +1054,8 @@ createApp({
         if (maxV1m !== null && r.vol1m > maxV1m) return false;
         if (minC1m !== null && (r.chg1m === null || Math.abs(r.chg1m) < minC1m)) return false;
         if (maxC1m !== null && (r.chg1m === null || Math.abs(r.chg1m) > maxC1m)) return false;
+        if (minC5m !== null && (r.chg5m === null || Math.abs(r.chg5m) < minC5m)) return false;
+        if (maxC5m !== null && (r.chg5m === null || Math.abs(r.chg5m) > maxC5m)) return false;
         if (minV24 !== null && r.vol24h < minV24) return false;
         if (maxV24 !== null && r.vol24h > maxV24) return false;
         return true;
@@ -898,7 +1101,7 @@ createApp({
       uiTick.value;
       let best = null;
       for (const r of filteredRows.value) {
-        if (!best || r.tps > best.tps) best = r;
+        if (r.mcap && (!best || r.mcap > best.mcap)) best = r;
       }
       return best;
     });
@@ -907,9 +1110,10 @@ createApp({
       const hasPrice = parseNum(minPrice.value) !== null || parseNum(maxPrice.value) !== null;
       const hasVol1m = parseNum(minVol1m.value) !== null || parseNum(maxVol1m.value) !== null;
       const hasChg1m = parseNum(minChg1m.value) !== null || parseNum(maxChg1m.value) !== null;
+      const hasChg5m = parseNum(minChg5m.value) !== null || parseNum(maxChg5m.value) !== null;
       const hasVol24h = parseNum(minVol24h.value) !== null || parseNum(maxVol24h.value) !== null;
 
-      return !!(searchQuery.value.trim() || hasPrice || hasVol1m || hasChg1m || hasVol24h || onlyFavs.value);
+      return !!(searchQuery.value.trim() || hasPrice || hasVol1m || hasChg1m || hasChg5m || hasVol24h || onlyFavs.value);
     });
 
     const resetFilters = () => {
@@ -920,6 +1124,8 @@ createApp({
       maxVol1m.value = null;
       minChg1m.value = null;
       maxChg1m.value = null;
+      minChg5m.value = null;
+      maxChg5m.value = null;
       minVol24h.value = null;
       maxVol24h.value = null;
       onlyFavs.value = false;
@@ -965,7 +1171,7 @@ createApp({
       store.set('sortDir', d);
     });
 
-    watch([minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minVol24h, maxVol24h], () => {
+    watch([minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h], () => {
       filterMemory.clear();
     });
 
@@ -985,6 +1191,7 @@ createApp({
       connect();
       fetchVolume24h();
       timers.push(setInterval(fetchVolume24h, 300000));
+      timers.push(setInterval(refreshMarketCaps, MCAP_CACHE_TTL));
       timers.push(setInterval(() => { uiTick.value++; }, 300));
       timers.push(setInterval(() => {
         ups.value = entryCount;
@@ -1028,11 +1235,11 @@ createApp({
       quotes: QUOTES,
       connectionStatus, statusText, latencyMs, fmtUptime,
       totalPairs, ups, leader,
-      searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minVol24h, maxVol24h, selectedQuote, onlyFavs,
+      searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h, selectedQuote, onlyFavs,
       sortKey, sortDir, hasFilters, resetFilters,
       filteredRows, displayedRows,
       sortBy, getSortIcon, toggleFav, isFav,
-      fmtPrice, fmtVol, binanceUrl, tickStyle
+      fmtPrice, fmtVol, fmtMCap, binanceUrl, tickStyle
     };
   }
 }).mount('#app');
