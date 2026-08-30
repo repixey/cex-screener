@@ -372,6 +372,16 @@
           </div>
         </div>
 
+        <!-- Market Cap Min / Max -->
+        <div class="col-6 col-md-6 col-lg-3">
+          <div class="input-group input-group-sm" title="Aggregated market cap (CoinGecko + CoinPaprika average)">
+            <span class="input-group-text font-mono"><i class="bi bi-pie-chart-fill"></i></span>
+            <input type="text" class="form-control font-mono" placeholder="MCap min" v-model="minMcap" inputmode="decimal">
+            <span class="input-group-text">–</span>
+            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxMcap" inputmode="decimal">
+          </div>
+        </div>
+
         <!-- Quote selection & Favorites -->
         <div class="col-12 col-md-6 col-lg-3 d-flex align-items-center justify-content-end gap-2 ms-auto">
           <select class="form-select form-select-sm font-mono" v-model="selectedQuote" style="max-width: 105px;">
@@ -781,6 +791,10 @@ createApp({
     const minVol24h = ref(null);
     const maxVol24h = ref(null);
 
+    // Market Cap Filters (mcap)
+    const minMcap = ref(null);
+    const maxMcap = ref(null);
+
     const onlyFavs = ref(store.get('onlyFavs', false));
     const sortKey = ref(store.get('sortKey', 'vol1m'));
     if (sortKey.value === 'tps') sortKey.value = 'mcap';
@@ -1046,6 +1060,8 @@ createApp({
       const maxC5m = parseNum(maxChg5m.value);
       const minV24 = parseNum(minVol24h.value);
       const maxV24 = parseNum(maxVol24h.value);
+      const minMc = parseNum(minMcap.value);
+      const maxMc = parseNum(maxMcap.value);
 
       const rows = baseFilteredRows.value.filter(r => {
         if (minP !== null && r.price < minP) return false;
@@ -1058,6 +1074,8 @@ createApp({
         if (maxC5m !== null && (r.chg5m === null || Math.abs(r.chg5m) > maxC5m)) return false;
         if (minV24 !== null && r.vol24h < minV24) return false;
         if (maxV24 !== null && r.vol24h > maxV24) return false;
+        if (minMc !== null && (r.mcap === null || r.mcap < minMc)) return false;
+        if (maxMc !== null && (r.mcap === null || r.mcap > maxMc)) return false;
         return true;
       });
 
@@ -1112,8 +1130,9 @@ createApp({
       const hasChg1m = parseNum(minChg1m.value) !== null || parseNum(maxChg1m.value) !== null;
       const hasChg5m = parseNum(minChg5m.value) !== null || parseNum(maxChg5m.value) !== null;
       const hasVol24h = parseNum(minVol24h.value) !== null || parseNum(maxVol24h.value) !== null;
+      const hasMcap = parseNum(minMcap.value) !== null || parseNum(maxMcap.value) !== null;
 
-      return !!(searchQuery.value.trim() || hasPrice || hasVol1m || hasChg1m || hasChg5m || hasVol24h || onlyFavs.value);
+      return !!(searchQuery.value.trim() || hasPrice || hasVol1m || hasChg1m || hasChg5m || hasVol24h || hasMcap || onlyFavs.value);
     });
 
     const resetFilters = () => {
@@ -1128,6 +1147,8 @@ createApp({
       maxChg5m.value = null;
       minVol24h.value = null;
       maxVol24h.value = null;
+      minMcap.value = null;
+      maxMcap.value = null;
       onlyFavs.value = false;
     };
 
@@ -1171,7 +1192,7 @@ createApp({
       store.set('sortDir', d);
     });
 
-    watch([minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h], () => {
+    watch([minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h, minMcap, maxMcap], () => {
       filterMemory.clear();
     });
 
@@ -1235,7 +1256,7 @@ createApp({
       quotes: QUOTES,
       connectionStatus, statusText, latencyMs, fmtUptime,
       totalPairs, ups, leader,
-      searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h, selectedQuote, onlyFavs,
+      searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h, minMcap, maxMcap, selectedQuote, onlyFavs,
       sortKey, sortDir, hasFilters, resetFilters,
       filteredRows, displayedRows,
       sortBy, getSortIcon, toggleFav, isFav,
