@@ -15,6 +15,7 @@
   <link rel="preconnect" href="https://static.coinpaprika.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://s.tradingview.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -170,6 +171,8 @@
     .pair-base{color:#fff;font-weight:700;font-size:13.5px;text-decoration:none;font-family:var(--sans)}
     a.pair-base{transition:color .15s}
     a.pair-base:hover{color:var(--accent-2)}
+    button.pair-base{background:none;border:none;padding:0;margin:0;text-align:left;cursor:pointer;transition:color .15s}
+    button.pair-base:hover{color:var(--accent-2)}
     .pair-quote{color:var(--faint);font-size:10px;font-weight:500}
     .star-btn{
       background:none;border:none;padding:3px 5px;margin-left:auto;
@@ -229,6 +232,51 @@
       font-size:10px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;
       color:var(--faint);border:1px solid var(--border-soft);border-radius:5px;
       padding:1px 6px;margin-left:8px;white-space:nowrap;
+    }
+
+    /* --- Floating TradingView chart windows --- */
+    .chart-float{
+      position:fixed;z-index:200;
+      width:min(760px, calc(100vw - 24px));
+      height:min(520px, calc(100vh - 24px));
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:0 20px 60px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
+      display:flex;flex-direction:column;
+      overflow:hidden;
+      resize:both;
+      min-width:340px;min-height:280px;
+    }
+    .chart-float-header{
+      display:flex;align-items:center;gap:10px;
+      padding:9px 10px 9px 14px;
+      background:linear-gradient(180deg,#1A2130,#141A26);
+      border-bottom:1px solid var(--border);
+      cursor:move;user-select:none;flex:0 0 auto;
+    }
+    .chart-float-title{
+      display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;
+    }
+    .chart-float-title .coin-avatar{flex:0 0 auto}
+    .chart-float-name{color:#fff;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .chart-float-quote{color:var(--faint);font-size:11px;font-family:var(--mono)}
+    .chart-float-actions{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+    .cf-btn{
+      background:var(--bg-soft);border:1px solid var(--border);color:var(--muted);
+      width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+      cursor:pointer;transition:color .15s,border-color .15s,background .15s;font-size:13px;
+      text-decoration:none;
+    }
+    .cf-btn:hover{color:#fff;border-color:#3E4863;background:var(--card-2)}
+    .chart-float-body{flex:1 1 auto;position:relative;background:#0B0E14}
+    .chart-float-body iframe{width:100%;height:100%;border:0;display:block}
+    .chart-float-loading{
+      position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);
+      font-size:13px;pointer-events:none;
+    }
+    @media (max-width:576px){
+      .chart-float{left:12px !important;right:12px;top:auto !important;bottom:12px;width:calc(100vw - 24px) !important;height:70vh !important;}
     }
 
     @media (max-width:1399.98px){.hide-xxl{display:none}}
@@ -459,8 +507,8 @@
               <div class="pair-cell">
                 <coin-icon :symbol="row.base" :size="24"></coin-icon>
                 <div class="pair-name">
-                  <a v-if="row.quote && !row.isGhost" class="pair-base" :href="binanceUrl(row)" target="_blank" rel="noopener">{{ row.base }}</a>
-                  <span v-else class="pair-base">{{ row.base }}</span>
+                  <button type="button" class="pair-base"
+                          @click="openChart(row)" :title="'Открыть график ' + row.base">{{ row.base }}</button>
                   <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
                 </div>
                 <span v-if="row.isGhost" class="ghost-tag">history</span>
@@ -498,6 +546,35 @@
       <span>Prices indicative · Not financial advice</span>
     </footer>
   </main>
+
+  <!-- Floating TradingView chart windows (multiple at once) -->
+  <div v-for="c in charts" :key="c.id" class="chart-float"
+       :ref="el => setChartRef(c.id, el)"
+       :style="{ left: c.x + 'px', top: c.y + 'px', zIndex: c.z }"
+       @mousedown="bringToFront(c.id)">
+    <div class="chart-float-header" @mousedown="startDrag($event, c)">
+      <div class="chart-float-title">
+        <coin-icon :symbol="c.base" :size="20"></coin-icon>
+        <span class="chart-float-name">{{ c.base }}</span>
+        <span class="chart-float-quote" v-if="c.quote">/ {{ c.quote }}</span>
+      </div>
+      <div class="chart-float-actions">
+        <a class="cf-btn" :href="binanceUrl(c)" target="_blank" rel="noopener" title="Открыть на Binance" @mousedown.stop>
+          <i class="bi bi-box-arrow-up-right"></i>
+        </a>
+        <button class="cf-btn" type="button" title="Закрыть" @mousedown.stop @click="closeChart(c.id)">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+    <div class="chart-float-body">
+      <div class="chart-float-loading" v-if="c.loading">
+        <div class="spinner-border spinner-border-sm text-secondary"></div>
+      </div>
+      <iframe :key="c.sym" :src="chartSrcFor(c)" @load="c.loading = false"
+              allowtransparency="true" scrolling="no"></iframe>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -811,6 +888,118 @@ createApp({
     let latencyN = 0;
     let connectedAt = 0;
     const timers = [];
+
+    // --- Floating TradingView chart windows (multiple, draggable, stacked) ---
+    const charts = reactive([]); // [{ id, sym, base, quote, loading, x, y, z }]
+    const chartEls = new Map();  // id -> DOM element, for drag bounds
+    let chartIdSeq = 0;
+    let zCounter = 200;
+    let dragState = null; // { id, offsetX, offsetY, el }
+
+    const setChartRef = (id, el) => {
+      if (el) chartEls.set(id, el);
+      else chartEls.delete(id);
+    };
+
+    const bringToFront = (id) => {
+      const c = charts.find(x => x.id === id);
+      if (c) c.z = ++zCounter;
+    };
+
+    const openChart = (row) => {
+      const id = ++chartIdSeq;
+      const w = Math.min(760, window.innerWidth - 24);
+      const baseX = Math.max(12, Math.round((window.innerWidth - w) / 2));
+      const baseY = Math.max(70, Math.round(window.innerHeight * 0.16));
+      const offset = (charts.length % 8) * 28;
+      charts.push({
+        id,
+        sym: row.sym,
+        base: row.base,
+        quote: row.quote,
+        loading: true,
+        x: baseX + offset,
+        y: baseY + offset,
+        z: ++zCounter
+      });
+    };
+
+    const closeChart = (id) => {
+      const idx = charts.findIndex(x => x.id === id);
+      if (idx !== -1) charts.splice(idx, 1);
+      chartEls.delete(id);
+    };
+
+    const closeTopChart = () => {
+      if (!charts.length) return;
+      let top = charts[0];
+      for (const c of charts) if (c.z > top.z) top = c;
+      closeChart(top.id);
+    };
+
+    const startDrag = (e, chart) => {
+      bringToFront(chart.id);
+      const el = chartEls.get(chart.id);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      dragState = {
+        id: chart.id,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        el
+      };
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', endDrag);
+      e.preventDefault();
+    };
+
+    const onDrag = (e) => {
+      if (!dragState) return;
+      const chart = charts.find(x => x.id === dragState.id);
+      if (!chart) return;
+      const w = dragState.el.offsetWidth;
+      const h = dragState.el.offsetHeight;
+      let x = e.clientX - dragState.offsetX;
+      let y = e.clientY - dragState.offsetY;
+      x = Math.min(Math.max(0, x), window.innerWidth - Math.min(w, window.innerWidth));
+      y = Math.min(Math.max(0, y), window.innerHeight - Math.min(h, window.innerHeight));
+      chart.x = x;
+      chart.y = y;
+    };
+
+    const endDrag = () => {
+      dragState = null;
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', endDrag);
+    };
+
+    const chartSrcFor = (chart) => {
+      if (!chart || !chart.sym) return 'about:blank';
+      const tvSymbol = 'BINANCE:' + chart.sym;
+      const cfg = {
+        symbol: tvSymbol,
+        interval: '1',
+        timezone: 'Etc/UTC',
+        theme: 'dark',
+        style: '1',
+        locale: 'ru',
+        toolbar_bg: '#11151F',
+        enable_publishing: false,
+        allow_symbol_change: true,
+        hide_top_toolbar: false,
+        hide_legend: false,
+        save_image: false,
+        calendar: false,
+        support_host: 'https://www.tradingview.com'
+      };
+      // Public, key-free TradingView embed widget: config is passed as
+      // URL-encoded JSON in the fragment, no account or API key needed.
+      return 'https://s.tradingview.com/embed-widget/advanced-chart/?locale=ru#' + encodeURIComponent(JSON.stringify(cfg));
+    };
+
+    const onChartKeydown = (e) => {
+      if (e.key === 'Escape' && charts.length) closeTopChart();
+    };
 
     const fetchVolume24h = async () => {
       try {
@@ -1240,13 +1429,17 @@ createApp({
         }
       }, 30000));
       window.addEventListener('keydown', onKeydown);
+      window.addEventListener('keydown', onChartKeydown);
       document.addEventListener('visibilitychange', onVisibility);
     });
 
     onBeforeUnmount(() => {
       timers.forEach(clearInterval);
       window.removeEventListener('keydown', onKeydown);
+      window.removeEventListener('keydown', onChartKeydown);
       document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', endDrag);
       if (ws) {
         try { ws.close(); } catch {}
       }
@@ -1260,7 +1453,9 @@ createApp({
       sortKey, sortDir, hasFilters, resetFilters,
       filteredRows, displayedRows,
       sortBy, getSortIcon, toggleFav, isFav,
-      fmtPrice, fmtVol, fmtMCap, binanceUrl, tickStyle
+      fmtPrice, fmtVol, fmtMCap, binanceUrl, tickStyle,
+      charts, setChartRef, chartSrcFor,
+      openChart, closeChart, startDrag, bringToFront
     };
   }
 }).mount('#app');
