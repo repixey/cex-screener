@@ -527,8 +527,8 @@
             <th class="text-end" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Aggregated market cap (CoinGecko + CoinPaprika average, not from Binance)">
               MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
             </th>
-            <th class="text-end no-sort hide-md" title="Last tick directions">
-              <i class="bi bi-graph-up-arrow"></i>
+            <th class="text-end" @click="sortBy('atr1m')" :class="{ active: sortKey === 'atr1m' }" title="Average true range over 1 minute (percent)">
+              ATR 1m % <i class="sort-icon" :class="getSortIcon('atr1m')"></i>
             </th>
           </tr>
         </thead>
@@ -566,11 +566,14 @@
                   <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
                 </div>
                 <span v-if="row.isGhost" class="ghost-tag">history</span>
-                <div v-else class="d-flex align-items-center gap-1 ms-1">
-                  <button class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
+                <!-- Кнопки действий -->
+                <div class="d-flex align-items-center gap-1 ms-1">
+                  <!-- Звезда только для обычных строк -->
+                  <button v-if="!row.isGhost" class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
                           @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
                     <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
                   </button>
+                  <!-- Блокировка доступна и для ghost -->
                   <button class="star-btn" type="button"
                           @click="toggleBlock(row.sym)" :title="isBlocked(row.sym) ? 'Unblock pair' : 'Block pair'">
                     <i class="bi" :class="isBlocked(row.sym) ? 'bi-eye' : 'bi-eye-slash'"></i>
@@ -588,13 +591,9 @@
             <td class="text-end vol-cell hide-lg">{{ fmtVol(row.vol1m) }}</td>
             <td class="text-end vol-cell hide-xl">{{ fmtVol(row.vol24h) }}</td>
             <td class="text-end"><span class="mcap-badge" :class="{ 'mcap-hot': row.mcap >= 1e9 }">{{ fmtMCap(row.mcap) }}</span></td>
-            <td class="text-end hide-md">
-              <div v-if="row.ticks.length" class="pulse-bar">
-                <i v-for="(t, idx) in row.ticks" :key="idx"
-                   :class="{ u: t === 1, d: t === -1 }"
-                   :style="tickStyle(idx, row.ticks.length)"></i>
-              </div>
-              <span v-else class="vol-cell">—</span>
+            <td class="text-end vol-cell">
+              <template v-if="row.atr1m !== null">{{ row.atr1m.toFixed(3) }}%</template>
+              <template v-else>—</template>
             </td>
           </tr>
         </tbody>
@@ -1153,6 +1152,21 @@ createApp({
       };
     };
 
+    // Новое: вычисление ATR 1m (средний абсолютный диапазон изменения цены за минуту, %)
+    const calcAtr1m = (entry, now) => {
+      const target = now - 60000;
+      const recent = entry.history.filter(h => h.t >= target);
+      if (recent.length < 2) return null;
+      let sumAbsChange = 0;
+      for (let i = 1; i < recent.length; i++) {
+        sumAbsChange += Math.abs(recent[i].p - recent[i-1].p);
+      }
+      const avgAbsChange = sumAbsChange / (recent.length - 1);
+      const currentPrice = recent[recent.length-1].p;
+      if (!isFinite(currentPrice) || currentPrice === 0) return null;
+      return (avgAbsChange / currentPrice) * 100;
+    };
+
     const fmtPrice = (p) => {
       if (p === null || p === undefined || !isFinite(p)) return '—';
       if (p === 0) return '0';
@@ -1301,6 +1315,9 @@ createApp({
         // Добавляем историю для мини-графика (последние 60 точек)
         const history = e.history.slice(-60).map(h => ({ t: h.t, p: h.p }));
 
+        // Вычисляем ATR 1m
+        const atr1m = calcAtr1m(e, now);
+
         rows.push({
           sym,
           base,
@@ -1315,6 +1332,7 @@ createApp({
           flashCls: e.dir !== 0 && now - e.flashAt < FLASH_MS ? (e.dir === 1 ? 'flash-up' : 'flash-down') : '',
           c1m: fmtChg(chg1m),
           c5m: fmtChg(chg5m),
+          atr1m,
           history
         });
       }
@@ -1335,6 +1353,7 @@ createApp({
             case 'chg5m': return r.chg5m ?? -Infinity;
             case 'mcap': return r.mcap ?? -Infinity;
             case 'vol24h': return r.vol24h;
+            case 'atr1m': return r.atr1m ?? -Infinity;
             default: return r.vol1m;
           }
         };
