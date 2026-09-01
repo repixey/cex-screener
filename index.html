@@ -524,11 +524,11 @@
             <th class="text-end hide-xl" @click="sortBy('vol24h')" :class="{ active: sortKey === 'vol24h' }" title="Traded volume in last 24 hours">
               24h Vol <i class="sort-icon" :class="getSortIcon('vol24h')"></i>
             </th>
+            <th class="text-end" @click="sortBy('atr1m')" :class="{ active: sortKey === 'atr1m' }" title="Average True Range (1 minute) — mean absolute percent change per minute over current session">
+              ATR 1m % <i class="sort-icon" :class="getSortIcon('atr1m')"></i>
+            </th>
             <th class="text-end" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Aggregated market cap (CoinGecko + CoinPaprika average, not from Binance)">
               MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
-            </th>
-            <th class="text-end" @click="sortBy('atr1m')" :class="{ active: sortKey === 'atr1m' }" title="Average true range over 1 minute (percent)">
-              ATR 1m % <i class="sort-icon" :class="getSortIcon('atr1m')"></i>
             </th>
           </tr>
         </thead>
@@ -556,7 +556,6 @@
               :title="row.isGhost ? 'Больше не соответствует фильтрам — остаётся в истории' : null">
             <td>
               <div class="pair-cell">
-                <!-- Обёртка для событий наведения на аватар -->
                 <span @mouseenter="showPreview($event, row)" @mouseleave="hidePreview">
                   <coin-icon :symbol="row.base" :size="24"></coin-icon>
                 </span>
@@ -566,14 +565,11 @@
                   <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
                 </div>
                 <span v-if="row.isGhost" class="ghost-tag">history</span>
-                <!-- Кнопки действий -->
                 <div class="d-flex align-items-center gap-1 ms-1">
-                  <!-- Звезда только для обычных строк -->
                   <button v-if="!row.isGhost" class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
                           @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
                     <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
                   </button>
-                  <!-- Блокировка доступна и для ghost -->
                   <button class="star-btn" type="button"
                           @click="toggleBlock(row.sym)" :title="isBlocked(row.sym) ? 'Unblock pair' : 'Block pair'">
                     <i class="bi" :class="isBlocked(row.sym) ? 'bi-eye' : 'bi-eye-slash'"></i>
@@ -590,11 +586,11 @@
             <td class="text-end"><span class="badge-chg" :class="row.c5m.cls">{{ row.c5m.text }}</span></td>
             <td class="text-end vol-cell hide-lg">{{ fmtVol(row.vol1m) }}</td>
             <td class="text-end vol-cell hide-xl">{{ fmtVol(row.vol24h) }}</td>
-            <td class="text-end"><span class="mcap-badge" :class="{ 'mcap-hot': row.mcap >= 1e9 }">{{ fmtMCap(row.mcap) }}</span></td>
             <td class="text-end vol-cell">
               <template v-if="row.atr1m !== null">{{ row.atr1m.toFixed(3) }}%</template>
               <template v-else>—</template>
             </td>
+            <td class="text-end"><span class="mcap-badge" :class="{ 'mcap-hot': row.mcap >= 1e9 }">{{ fmtMCap(row.mcap) }}</span></td>
           </tr>
         </tbody>
       </table>
@@ -969,16 +965,13 @@ createApp({
     const sortDir = ref(store.get('sortDir', -1));
     const searchEl = ref(null);
 
-    // --- Blocklist modal state ---
     const showBlocklistModal = ref(false);
 
-    // --- Алерты (без звука) ---
     const alertedChg1m = reactive(new Set());
     const alertedChg5m = reactive(new Set());
     const originalTitle = document.title;
     let titleFlashInterval = null;
 
-    // --- Превью графика ---
     const previewRow = ref(null);
     const previewX = ref(0);
     const previewY = ref(0);
@@ -995,7 +988,6 @@ createApp({
     let connectedAt = 0;
     const timers = [];
 
-    // --- Плавающие окна графиков ---
     const charts = reactive([]);
     const chartEls = new Map();
     let chartIdSeq = 0;
@@ -1152,21 +1144,6 @@ createApp({
       };
     };
 
-    // Новое: вычисление ATR 1m (средний абсолютный диапазон изменения цены за минуту, %)
-    const calcAtr1m = (entry, now) => {
-      const target = now - 60000;
-      const recent = entry.history.filter(h => h.t >= target);
-      if (recent.length < 2) return null;
-      let sumAbsChange = 0;
-      for (let i = 1; i < recent.length; i++) {
-        sumAbsChange += Math.abs(recent[i].p - recent[i-1].p);
-      }
-      const avgAbsChange = sumAbsChange / (recent.length - 1);
-      const currentPrice = recent[recent.length-1].p;
-      if (!isFinite(currentPrice) || currentPrice === 0) return null;
-      return (avgAbsChange / currentPrice) * 100;
-    };
-
     const fmtPrice = (p) => {
       if (p === null || p === undefined || !isFinite(p)) return '—';
       if (p === 0) return '0';
@@ -1216,9 +1193,29 @@ createApp({
       let e = marketData.get(sym);
       const now = Date.now();
       if (!e) {
-        e = { sym, price, vol: 0, lastP: null, dir: 0, flashAt: 0, ticks: [], history: [] };
+        e = { 
+          sym, price, vol: 0, lastP: null, dir: 0, flashAt: 0, ticks: [], history: [],
+          atrSum: 0, atrCount: 0, minuteStartPrice: price, minuteStartTs: Math.floor(eventTime / 60000)
+        };
         marketData.set(sym, e);
+      } else {
+        // Проверка смены минуты для ATR
+        const currentMinute = Math.floor(eventTime / 60000);
+        if (currentMinute > e.minuteStartTs) {
+          // Завершилась предыдущая минута
+          const prevClose = e.price; // последняя цена старой минуты (e.price ещё не обновлён)
+          if (e.minuteStartPrice > 0 && isFinite(e.minuteStartPrice) && isFinite(prevClose)) {
+            const pct = ((prevClose - e.minuteStartPrice) / e.minuteStartPrice) * 100;
+            e.atrSum += Math.abs(pct);
+            e.atrCount++;
+          }
+          // Начинаем новую минуту
+          e.minuteStartPrice = price;
+          e.minuteStartTs = currentMinute;
+        }
       }
+
+      // Обновление остальных данных как раньше
       if (e.lastP !== null && price !== e.lastP) {
         e.dir = price > e.lastP ? 1 : -1;
         e.flashAt = now;
@@ -1276,6 +1273,13 @@ createApp({
         reconnectDelay = 1000;
         connectedAt = Date.now();
         uptimeSec.value = 0;
+        // Сброс ATR-накопителей для всех существующих записей
+        for (const [sym, e] of marketData) {
+          e.atrSum = 0;
+          e.atrCount = 0;
+          e.minuteStartPrice = e.price;
+          e.minuteStartTs = Math.floor(Date.now() / 60000);
+        }
       };
       ws.onmessage = handleMessage;
       ws.onerror = () => {
@@ -1297,7 +1301,6 @@ createApp({
       const rows = [];
       for (const [sym, e] of marketData) {
         if (e.lastP === null) continue;
-        // Пропускаем заблокированные
         if (blockedSymbols.has(sym)) continue;
         if (quote !== 'ALL' && !sym.endsWith(quote)) continue;
         if (onlyFavs.value && !favs.has(sym)) continue;
@@ -1312,11 +1315,10 @@ createApp({
         const chg5m = pctChange(e.price, m5m.price);
         const vol24h = vol24hMap.get(sym) || 0;
 
-        // Добавляем историю для мини-графика (последние 60 точек)
         const history = e.history.slice(-60).map(h => ({ t: h.t, p: h.p }));
 
-        // Вычисляем ATR 1m
-        const atr1m = calcAtr1m(e, now);
+        // ATR 1m из накопленных значений
+        const atr1m = e.atrCount > 0 ? e.atrSum / e.atrCount : null;
 
         rows.push({
           sym,
@@ -1503,14 +1505,12 @@ createApp({
       };
     };
 
-    // --- Blocklist functions ---
     const isBlocked = (sym) => blockedSymbols.has(sym);
     const toggleBlock = (sym) => {
       if (blockedSymbols.has(sym)) {
         blockedSymbols.delete(sym);
       } else {
         blockedSymbols.add(sym);
-        // Удаляем из filterMemory, чтобы не оставался как ghost
         filterMemory.delete(sym);
       }
       store.set('blockedSymbols', [...blockedSymbols]);
@@ -1519,7 +1519,6 @@ createApp({
     const closeBlocklistModal = () => { showBlocklistModal.value = false; };
     const blockedList = computed(() => Array.from(blockedSymbols));
 
-    // --- Методы для превью ---
     const showPreview = (event, row) => {
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => {
@@ -1539,7 +1538,6 @@ createApp({
       previewRow.value = null;
     };
 
-    // --- Алерты (без звука) ---
     const showNotification = (title, body) => {
       if (Notification.permission === 'granted') {
         new Notification(title, { body });
@@ -1569,7 +1567,7 @@ createApp({
       const now = Date.now();
       for (const [sym, e] of marketData) {
         if (e.lastP === null) continue;
-        if (blockedSymbols.has(sym)) continue; // не алертим на заблокированные
+        if (blockedSymbols.has(sym)) continue;
         const m1m = windowMetrics(e, 60000, now);
         const chg1m = pctChange(e.price, m1m.price);
         const m5m = windowMetrics(e, 300000, now);
@@ -1601,13 +1599,11 @@ createApp({
       }
     };
 
-    // Сброс alerted при изменении фильтров
     watch([minChg1m, maxChg1m, minChg5m, maxChg5m], () => {
       alertedChg1m.clear();
       alertedChg5m.clear();
     });
 
-    // Watch для сохранения настроек
     watch(selectedQuote, v => store.set('quote', v));
     watch(onlyFavs, v => store.set('onlyFavs', v));
     watch(searchQuery, v => store.set('search', v));
@@ -1657,7 +1653,6 @@ createApp({
         if (avgLatency !== null) latencyMs.value = avgLatency;
         totalPairs.value = marketData.size;
       }, 1000));
-      // Интервал проверки алертов (работает всегда)
       timers.push(setInterval(checkAlerts, 2000));
       timers.push(setInterval(() => {
         if (isPaused.value) return;
@@ -1696,7 +1691,6 @@ createApp({
       charts, setChartRef, chartSrcFor,
       openChart, closeChart, startDrag, bringToFront,
       showPreview, hidePreview, previewRow, previewX, previewY,
-      // Блэклист
       isBlocked, toggleBlock, blockedList, openBlocklistModal, closeBlocklistModal, showBlocklistModal
     };
   }
