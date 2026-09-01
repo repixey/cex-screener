@@ -129,12 +129,14 @@
     }
     .pairs-count-label{color:var(--muted);font-weight:500;font-family:var(--sans)}
     .table-wrap{
+      position:relative;
       max-height:calc(100vh - 260px);min-height:520px;
       overflow:auto;border:1px solid var(--border-soft);
       border-radius:var(--radius);background:var(--card);
       overscroll-behavior:contain;
       scrollbar-width:thin;scrollbar-color:#2A3244 transparent;
     }
+    .table-wrap.is-paused{border-color:rgba(244,196,48,.45)}
     .screener{
       margin:0;font-family:var(--mono);font-size:13px;
       border-collapse:separate;border-spacing:0;min-width:940px;
@@ -163,6 +165,7 @@
     .coin-avatar{
       display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:0 0 auto;
       box-shadow:0 0 0 1.5px rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.35);
+      cursor:pointer;
     }
     .coin-avatar img{width:100%;height:100%;object-fit:cover;display:block}
     .coin-avatar-fb{color:#fff;font-weight:800;letter-spacing:-.5px;line-height:1}
@@ -275,6 +278,45 @@
       position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);
       font-size:13px;pointer-events:none;
     }
+
+    /* --- Mini chart preview (hover on avatar) --- */
+    .chart-preview {
+      position: fixed;
+      z-index: 1000;
+      pointer-events: none;
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.6);
+    }
+    .chart-preview svg {
+      display: block;
+      background: var(--bg);
+      border-radius: 4px;
+    }
+
+    /* --- Modal backdrop (for blocklist) --- */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,.6);
+      z-index: 1040;
+    }
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1050;
+      overflow-y: auto;
+      display: block;
+    }
+
     @media (max-width:576px){
       .chart-float{left:12px !important;right:12px;top:auto !important;bottom:12px;width:calc(100vw - 24px) !important;height:70vh !important;}
     }
@@ -312,6 +354,7 @@
   </header>
 
   <main class="container-xxl py-3">
+    <!-- KPI Row -->
     <section class="row g-2 mb-3">
       <div class="col-6 col-lg-3">
         <div class="kpi h-100">
@@ -355,7 +398,7 @@
       </div>
     </section>
 
-    <!-- SECTION FILTER PANEL -->
+    <!-- Filter Panel -->
     <section class="panel p-2 mb-3">
       <div class="row g-2 align-items-center">
         <!-- Search -->
@@ -430,7 +473,7 @@
           </div>
         </div>
 
-        <!-- Quote selection & Favorites -->
+        <!-- Quote selection & Favorites & Blocklist button -->
         <div class="col-12 col-md-6 col-lg-3 d-flex align-items-center justify-content-end gap-2 ms-auto">
           <select class="form-select form-select-sm font-mono" v-model="selectedQuote" style="max-width: 105px;">
             <option v-for="q in quotes" :key="q" :value="q">{{ q }}</option>
@@ -439,6 +482,12 @@
 
           <button class="chip" :class="{ on: onlyFavs }" type="button" @click="onlyFavs = !onlyFavs">
             <i class="bi" :class="onlyFavs ? 'bi-star-fill' : 'bi-star'"></i>
+          </button>
+
+          <!-- Blocklist button -->
+          <button class="chip" type="button" @click="openBlocklistModal" :title="'Blocklist (' + blockedList.length + ')'">
+            <i class="bi bi-ban"></i>
+            <span v-if="blockedList.length" class="badge bg-secondary ms-1">{{ blockedList.length }}</span>
           </button>
 
           <span class="pairs-count" v-if="!hasFilters">
@@ -451,7 +500,9 @@
       </div>
     </section>
 
-    <section class="table-wrap">
+    <!-- Table -->
+    <section class="table-wrap" :class="{ 'is-paused': isPaused }"
+             @mouseenter="isPaused = true" @mouseleave="isPaused = false">
       <table class="table screener align-middle table-hover">
         <thead>
           <tr>
@@ -505,17 +556,26 @@
               :title="row.isGhost ? 'Больше не соответствует фильтрам — остаётся в истории' : null">
             <td>
               <div class="pair-cell">
-                <coin-icon :symbol="row.base" :size="24"></coin-icon>
+                <!-- Обёртка для событий наведения на аватар -->
+                <span @mouseenter="showPreview($event, row)" @mouseleave="hidePreview">
+                  <coin-icon :symbol="row.base" :size="24"></coin-icon>
+                </span>
                 <div class="pair-name">
                   <button type="button" class="pair-base"
                           @click="openChart(row)" :title="'Открыть график ' + row.base">{{ row.base }}</button>
                   <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
                 </div>
                 <span v-if="row.isGhost" class="ghost-tag">history</span>
-                <button v-else class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
-                        @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
-                  <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
-                </button>
+                <div v-else class="d-flex align-items-center gap-1 ms-1">
+                  <button class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
+                          @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
+                    <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
+                  </button>
+                  <button class="star-btn" type="button"
+                          @click="toggleBlock(row.sym)" :title="isBlocked(row.sym) ? 'Unblock pair' : 'Block pair'">
+                    <i class="bi" :class="isBlocked(row.sym) ? 'bi-eye' : 'bi-eye-slash'"></i>
+                  </button>
+                </div>
               </div>
             </td>
             <td class="text-end" :class="row.flashCls">
@@ -575,6 +635,36 @@
               allowtransparency="true" scrolling="no"></iframe>
     </div>
   </div>
+
+  <!-- Mini chart preview -->
+  <div class="chart-preview" v-if="previewRow" :style="{ left: previewX + 'px', top: previewY + 'px' }">
+    <mini-chart :data="previewRow.history"></mini-chart>
+  </div>
+
+  <!-- Blocklist Modal -->
+  <div v-if="showBlocklistModal" class="modal fade show" style="display:block" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content" style="background-color:#11151F; color:#E4E8F1; border:1px solid #2A3244;">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title">Blocked pairs</h5>
+          <button type="button" class="btn-close btn-close-white" @click="closeBlocklistModal"></button>
+        </div>
+        <div class="modal-body">
+          <div v-if="blockedList.length === 0" class="text-muted">No blocked pairs</div>
+          <ul class="list-group list-group-flush">
+            <li v-for="sym in blockedList" :key="sym" class="list-group-item bg-transparent text-light d-flex justify-content-between align-items-center border-secondary">
+              <span class="font-mono">{{ sym }}</span>
+              <button class="btn btn-sm btn-outline-warning" @click="toggleBlock(sym)">Unblock</button>
+            </li>
+          </ul>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button class="btn btn-secondary" @click="closeBlocklistModal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div v-if="showBlocklistModal" class="modal-backdrop fade show"></div>
 </div>
 
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -584,8 +674,6 @@ const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount } 
 const STREAM_URL = 'wss://stream.binance.com:9443/ws/!miniTicker@arr';
 const QUOTES = ['USDT', 'FDUSD', 'USDC', 'TUSD', 'BTC', 'ETH', 'BNB', 'TRY', 'EUR', 'DAI'];
 const MAX_ROWS = 2000;
-// miniTicker@arr broadcasts ~once/sec per symbol, so 5min ≈ 300 ticks;
-// keep some headroom above that on both the count cap and the time cutoff.
 const HISTORY_LIMIT = 340;
 const HISTORY_TTL = 320000;
 const FLASH_MS = 950;
@@ -622,25 +710,13 @@ const iconSources = (sym) => {
   ];
 };
 
-/* --- Multi-source dynamic icon map (CoinGecko + CoinPaprika) ---
-   Fetched once per session (cached 24h in localStorage) and used as the
-   highest-priority icon source before falling back to the legacy static
-   repos above, and finally to the letter avatar. Reactive so avatars that
-   are already showing a fallback upgrade automatically once data lands. */
 const iconMap = reactive(new Map());
 const ICON_CACHE_KEY = 'iconMap:v1';
 const ICON_CACHE_TTL = 24 * 60 * 60 * 1000;
 
-/* --- Aggregated market-cap map (CoinGecko + CoinPaprika) ---
-   Deliberately NOT sourced from Binance: Binance only ever reports 24h
-   quote volume per pair, not real circulating-supply market cap, so any
-   "cap" derived from it is wrong. Instead every symbol's cap is collected
-   from each source separately (entry.cg / entry.pp) and the displayed
-   value is the average of whichever sources actually reported it — a
-   simple but honest aggregation across independent data providers. */
-const mcapMap = reactive(new Map()); // symbol -> { cg?: number, pp?: number }
+const mcapMap = reactive(new Map());
 const MCAP_CACHE_KEY = 'mcapMap:v1';
-const MCAP_CACHE_TTL = 5 * 60 * 1000; // caps move with price, keep this short
+const MCAP_CACHE_TTL = 5 * 60 * 1000;
 
 const loadIconCache = () => {
   try {
@@ -687,8 +763,6 @@ const setMcapSource = (sym, source, value) => {
   mcapMap.set(sym, entry);
 };
 
-// Averages every source that reported a cap for this symbol. Returns null
-// when nobody has data for it yet (never falls back to Binance volume).
 const getAggregatedMcap = (sym) => {
   const entry = mcapMap.get((sym || '').toUpperCase());
   if (!entry) return null;
@@ -697,9 +771,6 @@ const getAggregatedMcap = (sym) => {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 };
 
-// Top ~1000 coins by market cap. Sorted order means the first hit for a
-// given ticker (e.g. multiple "SAFE" tokens) is the highest-cap one.
-// Also the primary source for aggregated market cap.
 const fetchCoinGeckoMarketData = async () => {
   for (let page = 1; page <= 4; page++) {
     try {
@@ -717,12 +788,10 @@ const fetchCoinGeckoMarketData = async () => {
       console.warn('CoinGecko market data fetch failed:', err);
       break;
     }
-    // gentle pacing to stay under the free-tier rate limit
     await new Promise((r) => setTimeout(r, 350));
   }
 };
 
-// Fills in icon gaps for coins CoinGecko's top-1000 didn't cover.
 const fetchCoinPaprikaIcons = async () => {
   try {
     const res = await fetch('https://api.coinpaprika.com/v1/coins');
@@ -741,8 +810,6 @@ const fetchCoinPaprikaIcons = async () => {
   }
 };
 
-// Second independent market-cap source, used both to fill gaps and to
-// average against CoinGecko for symbols both providers cover.
 const fetchCoinPaprikaMarketCaps = async () => {
   try {
     const res = await fetch('https://api.coinpaprika.com/v1/tickers?quotes=USD');
@@ -781,6 +848,7 @@ const initMarketData = async () => {
 
 initMarketData();
 
+// Компонент для отображения иконки монеты
 const CoinIcon = {
   props: {
     symbol: { type: String, required: true },
@@ -790,8 +858,6 @@ const CoinIcon = {
     return { idx: 0, failed: false };
   },
   computed: {
-    // Dynamic source (CoinGecko/CoinPaprika) always tried first when available,
-    // then the legacy static-repo list, then the generated letter avatar.
     sources() {
       const dyn = iconMap.get(this.symbol.toUpperCase());
       return dyn ? [dyn, ...iconSources(this.symbol)] : iconSources(this.symbol);
@@ -831,12 +897,47 @@ const CoinIcon = {
   `
 };
 
+// Компонент мини-графика
+const MiniChart = {
+  props: {
+    data: { type: Array, default: () => [] } // [{t, p}]
+  },
+  computed: {
+    points() {
+      if (!this.data || this.data.length < 2) return '';
+      const width = 180, height = 60, padding = 6;
+      const prices = this.data.map(d => d.p);
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      const range = (max - min) || 1;
+      return this.data.map((d, i) => {
+        const x = padding + (i / (this.data.length - 1)) * (width - 2 * padding);
+        const y = padding + (1 - (d.p - min) / range) * (height - 2 * padding);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+    },
+    strokeColor() {
+      if (this.data.length < 2) return '#626B80';
+      const first = this.data[0].p;
+      const last = this.data[this.data.length - 1].p;
+      return last >= first ? '#17D68C' : '#FF5470';
+    }
+  },
+  template: `
+    <svg :width="180" :height="60" viewBox="0 0 180 60" xmlns="http://www.w3.org/2000/svg">
+      <rect width="180" height="60" fill="#0B0E14" rx="4" />
+      <polyline :points="points" fill="none" :stroke="strokeColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+    </svg>
+  `
+};
+
 createApp({
-  components: { 'coin-icon': CoinIcon },
+  components: { 'coin-icon': CoinIcon, 'mini-chart': MiniChart },
   setup() {
     const marketData = new Map();
     const vol24hMap = new Map();
     const favs = reactive(new Set(store.get('favs', [])));
+    const blockedSymbols = reactive(new Set(store.get('blockedSymbols', [])));
     const uiTick = ref(0);
     const totalPairs = ref(0);
     const ups = ref(0);
@@ -845,30 +946,21 @@ createApp({
     const statusText = ref('Connecting');
     const uptimeSec = ref(0);
 
+    const isPaused = ref(false);
+
     const searchQuery = ref(store.get('search', ''));
     const selectedQuote = ref(store.get('quote', 'USDT'));
 
-    // Price Filters
     const minPrice = ref(null);
     const maxPrice = ref(null);
-
-    // 1-Minute Volume Filters (vol1m)
     const minVol1m = ref(null);
     const maxVol1m = ref(null);
-
-    // 1-Minute Price Change Filters (chg1m)
     const minChg1m = ref(null);
     const maxChg1m = ref(null);
-
-    // 5-Minute Price Change Filters (chg5m)
     const minChg5m = ref(null);
     const maxChg5m = ref(null);
-
-    // 24-Hour Volume Filters (vol24h)
     const minVol24h = ref(null);
     const maxVol24h = ref(null);
-
-    // Market Cap Filters (mcap)
     const minMcap = ref(null);
     const maxMcap = ref(null);
 
@@ -877,6 +969,21 @@ createApp({
     if (sortKey.value === 'tps') sortKey.value = 'mcap';
     const sortDir = ref(store.get('sortDir', -1));
     const searchEl = ref(null);
+
+    // --- Blocklist modal state ---
+    const showBlocklistModal = ref(false);
+
+    // --- Алерты (без звука) ---
+    const alertedChg1m = reactive(new Set());
+    const alertedChg5m = reactive(new Set());
+    const originalTitle = document.title;
+    let titleFlashInterval = null;
+
+    // --- Превью графика ---
+    const previewRow = ref(null);
+    const previewX = ref(0);
+    const previewY = ref(0);
+    let previewTimer = null;
 
     const filterMemory = new Map();
 
@@ -889,12 +996,12 @@ createApp({
     let connectedAt = 0;
     const timers = [];
 
-    // --- Floating TradingView chart windows (multiple, draggable, stacked) ---
-    const charts = reactive([]); // [{ id, sym, base, quote, loading, x, y, z }]
-    const chartEls = new Map();  // id -> DOM element, for drag bounds
+    // --- Плавающие окна графиков ---
+    const charts = reactive([]);
+    const chartEls = new Map();
     let chartIdSeq = 0;
     let zCounter = 200;
-    let dragState = null; // { id, offsetX, offsetY, el }
+    let dragState = null;
 
     const setChartRef = (id, el) => {
       if (el) chartEls.set(id, el);
@@ -992,8 +1099,6 @@ createApp({
         calendar: false,
         support_host: 'https://www.tradingview.com'
       };
-      // Public, key-free TradingView embed widget: config is passed as
-      // URL-encoded JSON in the fragment, no account or API key needed.
       return 'https://s.tradingview.com/embed-widget/advanced-chart/?locale=ru#' + encodeURIComponent(JSON.stringify(cfg));
     };
 
@@ -1178,6 +1283,8 @@ createApp({
       const rows = [];
       for (const [sym, e] of marketData) {
         if (e.lastP === null) continue;
+        // Пропускаем заблокированные
+        if (blockedSymbols.has(sym)) continue;
         if (quote !== 'ALL' && !sym.endsWith(quote)) continue;
         if (onlyFavs.value && !favs.has(sym)) continue;
         if (search && !sym.includes(search)) continue;
@@ -1190,6 +1297,9 @@ createApp({
         const chg1m = pctChange(e.price, m1m.price);
         const chg5m = pctChange(e.price, m5m.price);
         const vol24h = vol24hMap.get(sym) || 0;
+
+        // Добавляем историю для мини-графика (последние 60 точек)
+        const history = e.history.slice(-60).map(h => ({ t: h.t, p: h.p }));
 
         rows.push({
           sym,
@@ -1204,7 +1314,8 @@ createApp({
           ticks: e.ticks.slice(),
           flashCls: e.dir !== 0 && now - e.flashAt < FLASH_MS ? (e.dir === 1 ? 'flash-up' : 'flash-down') : '',
           c1m: fmtChg(chg1m),
-          c5m: fmtChg(chg5m)
+          c5m: fmtChg(chg5m),
+          history
         });
       }
       return rows;
@@ -1373,6 +1484,111 @@ createApp({
       };
     };
 
+    // --- Blocklist functions ---
+    const isBlocked = (sym) => blockedSymbols.has(sym);
+    const toggleBlock = (sym) => {
+      if (blockedSymbols.has(sym)) {
+        blockedSymbols.delete(sym);
+      } else {
+        blockedSymbols.add(sym);
+        // Удаляем из filterMemory, чтобы не оставался как ghost
+        filterMemory.delete(sym);
+      }
+      store.set('blockedSymbols', [...blockedSymbols]);
+    };
+    const openBlocklistModal = () => { showBlocklistModal.value = true; };
+    const closeBlocklistModal = () => { showBlocklistModal.value = false; };
+    const blockedList = computed(() => Array.from(blockedSymbols));
+
+    // --- Методы для превью ---
+    const showPreview = (event, row) => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => {
+        const width = 190, height = 70;
+        let x = event.clientX + 15;
+        let y = event.clientY + 15;
+        if (x + width > window.innerWidth - 10) x = event.clientX - width - 15;
+        if (y + height > window.innerHeight - 10) y = event.clientY - height - 15;
+        previewX.value = x;
+        previewY.value = y;
+        previewRow.value = row;
+      }, 150);
+    };
+
+    const hidePreview = () => {
+      clearTimeout(previewTimer);
+      previewRow.value = null;
+    };
+
+    // --- Алерты (без звука) ---
+    const showNotification = (title, body) => {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+    };
+
+    const flashTitle = (symbol) => {
+      if (titleFlashInterval) clearInterval(titleFlashInterval);
+      let count = 0;
+      const maxFlashes = 6;
+      titleFlashInterval = setInterval(() => {
+        document.title = count % 2 === 0 ? `⚡ Alert: ${symbol}` : originalTitle;
+        count++;
+        if (count >= maxFlashes) {
+          clearInterval(titleFlashInterval);
+          document.title = originalTitle;
+        }
+      }, 300);
+    };
+
+    const checkAlerts = () => {
+      if (!hasFilters.value) return;
+      const minC1m = parseNum(minChg1m.value);
+      const minC5m = parseNum(minChg5m.value);
+      if (minC1m === null && minC5m === null) return;
+
+      const now = Date.now();
+      for (const [sym, e] of marketData) {
+        if (e.lastP === null) continue;
+        if (blockedSymbols.has(sym)) continue; // не алертим на заблокированные
+        const m1m = windowMetrics(e, 60000, now);
+        const chg1m = pctChange(e.price, m1m.price);
+        const m5m = windowMetrics(e, 300000, now);
+        const chg5m = pctChange(e.price, m5m.price);
+
+        if (minC1m !== null) {
+          if (chg1m !== null && Math.abs(chg1m) >= minC1m) {
+            if (!alertedChg1m.has(sym)) {
+              alertedChg1m.add(sym);
+              showNotification('Alert: ' + sym, `1m change: ${chg1m.toFixed(2)}%`);
+              flashTitle(sym);
+            }
+          } else {
+            alertedChg1m.delete(sym);
+          }
+        }
+
+        if (minC5m !== null) {
+          if (chg5m !== null && Math.abs(chg5m) >= minC5m) {
+            if (!alertedChg5m.has(sym)) {
+              alertedChg5m.add(sym);
+              showNotification('Alert: ' + sym, `5m change: ${chg5m.toFixed(2)}%`);
+              flashTitle(sym);
+            }
+          } else {
+            alertedChg5m.delete(sym);
+          }
+        }
+      }
+    };
+
+    // Сброс alerted при изменении фильтров
+    watch([minChg1m, maxChg1m, minChg5m, maxChg5m], () => {
+      alertedChg1m.clear();
+      alertedChg5m.clear();
+    });
+
+    // Watch для сохранения настроек
     watch(selectedQuote, v => store.set('quote', v));
     watch(onlyFavs, v => store.set('onlyFavs', v));
     watch(searchQuery, v => store.set('search', v));
@@ -1402,16 +1618,13 @@ createApp({
       fetchVolume24h();
       timers.push(setInterval(fetchVolume24h, 300000));
       timers.push(setInterval(refreshMarketCaps, MCAP_CACHE_TTL));
-      timers.push(setInterval(() => { uiTick.value++; }, 300));
+      timers.push(setInterval(() => { if (!isPaused.value) uiTick.value++; }, 300));
       timers.push(setInterval(() => {
-        ups.value = entryCount;
+        const rate = entryCount;
         entryCount = 0;
-        if (latencyN > 0) {
-          latencyMs.value = Math.max(0, Math.round(latencySum / latencyN));
-          latencySum = 0;
-          latencyN = 0;
-        }
-        totalPairs.value = marketData.size;
+        const avgLatency = latencyN > 0 ? Math.max(0, Math.round(latencySum / latencyN)) : null;
+        latencySum = 0;
+        latencyN = 0;
         if (connectionStatus.value === 'live') {
           uptimeSec.value = Math.round((Date.now() - connectedAt) / 1000);
           if (Date.now() - lastMsgAt > 15000) {
@@ -1420,12 +1633,19 @@ createApp({
             try { ws.close(); } catch {}
           }
         }
+        if (isPaused.value) return;
+        ups.value = rate;
+        if (avgLatency !== null) latencyMs.value = avgLatency;
+        totalPairs.value = marketData.size;
       }, 1000));
+      // Интервал проверки алертов (работает всегда)
+      timers.push(setInterval(checkAlerts, 2000));
       timers.push(setInterval(() => {
+        if (isPaused.value) return;
         const stale = Date.now() - 15 * 60 * 1000;
         for (const [sym, e] of marketData) {
           const last = e.history.length ? e.history[e.history.length - 1].t : 0;
-          if (last && last < stale && !favs.has(sym)) marketData.delete(sym);
+          if (last && last < stale && !favs.has(sym) && !blockedSymbols.has(sym)) marketData.delete(sym);
         }
       }, 30000));
       window.addEventListener('keydown', onKeydown);
@@ -1448,14 +1668,17 @@ createApp({
     return {
       quotes: QUOTES,
       connectionStatus, statusText, latencyMs, fmtUptime,
-      totalPairs, ups, leader,
+      totalPairs, ups, leader, isPaused,
       searchQuery, searchEl, minPrice, maxPrice, minVol1m, maxVol1m, minChg1m, maxChg1m, minChg5m, maxChg5m, minVol24h, maxVol24h, minMcap, maxMcap, selectedQuote, onlyFavs,
       sortKey, sortDir, hasFilters, resetFilters,
       filteredRows, displayedRows,
       sortBy, getSortIcon, toggleFav, isFav,
       fmtPrice, fmtVol, fmtMCap, binanceUrl, tickStyle,
       charts, setChartRef, chartSrcFor,
-      openChart, closeChart, startDrag, bringToFront
+      openChart, closeChart, startDrag, bringToFront,
+      showPreview, hidePreview, previewRow, previewX, previewY,
+      // Блэклист
+      isBlocked, toggleBlock, blockedList, openBlocklistModal, closeBlocklistModal, showBlocklistModal
     };
   }
 }).mount('#app');
