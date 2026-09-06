@@ -1,721 +1,1614 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="ru" data-bs-theme="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0B0E14">
-  <meta name="description" content="Real-time crypto screener with tick-per-second metrics and short-window volumes">
-  <title>Live Screener — MCap & Short Volumes</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B0E14'/%3E%3Cpath d='M12 42 L24 28 L32 34 L46 16' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M40 16 h6 v6' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://stream.binance.com">
-  <link rel="preconnect" href="https://assets.coincap.io" crossorigin>
-  <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
-  <link rel="preconnect" href="https://api.coingecko.com" crossorigin>
-  <link rel="preconnect" href="https://api.coinpaprika.com" crossorigin>
-  <link rel="preconnect" href="https://static.coinpaprika.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://s.tradingview.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <style>
-    [v-cloak]{display:none}
-    :root{
-      --bg:#0B0E14;
-      --bg-soft:#0F131D;
-      --card:#11151F;
-      --card-2:#161C29;
-      --border:#2A3244;
-      --border-soft:#1D2432;
-      --text:#E4E8F1;
-      --muted:#8891A5;
-      --faint:#626B80;
-      --up:#17D68C;
-      --down:#FF5470;
-      --accent:#5A87FF;
-      --accent-2:#8CB0FF;
-      --warn:#F4C430;
-      --up-bg:rgba(23,214,140,.14);
-      --down-bg:rgba(255,84,112,.14);
-      --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-      --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-      --radius:14px;
-    }
-    ::selection{background:rgba(90,135,255,.35);color:#fff}
-    ::-webkit-scrollbar{width:11px;height:11px}
-    ::-webkit-scrollbar-thumb{background:#2A3244;border-radius:7px;border:2px solid var(--bg)}
-    ::-webkit-scrollbar-track{background:transparent}
-    body{
-      font-family:var(--sans);
-      color:var(--text);
-      font-size:15px;
-      min-height:100vh;
-      background:
-        radial-gradient(1100px 500px at 85% -10%, rgba(90,135,255,.09), transparent 60%),
-        radial-gradient(900px 420px at -10% 0%, rgba(23,214,140,.06), transparent 55%),
-        var(--bg);
-    }
-    .font-mono{font-family:var(--mono)}
-    .topbar{
-      position:sticky;top:0;z-index:100;
-      backdrop-filter:blur(14px);
-      background:rgba(11,14,20,.82);
-      border-bottom:1px solid var(--border-soft);
-    }
-    .brand-mark{
-      width:38px;height:38px;border-radius:10px;flex:0 0 auto;
-      background:linear-gradient(135deg,#5A87FF,#8CB0FF);
-      display:grid;place-items:center;color:#fff;font-size:18px;
-      box-shadow:0 4px 16px rgba(90,135,255,.4);
-    }
-    .brand-title{font-size:16px;font-weight:800;letter-spacing:.2px;color:#fff}
-    .brand-sub{font-size:11px;color:var(--faint);font-family:var(--mono);margin-top:1px}
-    .status-chip{
-      display:inline-flex;align-items:center;gap:9px;
-      padding:6px 12px;border-radius:999px;
-      border:1px solid var(--border);background:var(--card);
-      font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;
-    }
-    .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 auto}
-    .status-dot.live{background:var(--up);box-shadow:0 0 10px var(--up)}
-    .status-dot.bad{background:var(--down);box-shadow:0 0 10px var(--down)}
-    .status-dot.connecting{background:var(--warn);box-shadow:0 0 10px var(--warn);animation:blink 1.1s infinite}
-    @keyframes blink{50%{opacity:.25}}
-    .kpi{
-      background:linear-gradient(180deg,var(--card-2),var(--card));
-      border:1px solid var(--border-soft);
-      border-radius:var(--radius);
-      padding:10px 14px;
-      display:flex;align-items:center;gap:12px;
-      transition:border-color .2s,transform .2s;
-      min-width:0;
-    }
-    .kpi:hover{border-color:var(--border);transform:translateY(-1px)}
-    .kpi-icon{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex:0 0 auto}
-    .kpi-label{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:700}
-    .kpi-value{font-family:var(--mono);font-size:18px;font-weight:700;color:#fff;line-height:1.2;white-space:nowrap}
-    .kpi-sub{font-size:11px;color:var(--faint);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-    .panel{background:var(--card);border:1px solid var(--border-soft);border-radius:var(--radius)}
-    .form-control,.form-select{
-      background:var(--bg-soft);border-color:var(--border);color:var(--text);border-radius:9px;
-      font-size:14px;
-    }
-    .form-control:focus,.form-select:focus{
-      background:var(--bg-soft);border-color:var(--accent);
-      box-shadow:0 0 0 3px rgba(90,135,255,.18);color:#fff;
-    }
-    .input-group-text{background:var(--bg-soft);border-color:var(--border);color:var(--muted);font-size:14px}
-    ::placeholder{color:var(--faint)}
-    input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-    input[type=number]{-moz-appearance:textfield;appearance:textfield}
-    .btn-clear{
-      background:var(--bg-soft);border:1px solid var(--border);border-left:none;
-      color:var(--muted);padding:0 12px;transition:color .15s;cursor:pointer;
-    }
-    .btn-clear:hover{color:#fff}
-    .chip{
-      display:inline-flex;align-items:center;gap:7px;
-      padding:8px 15px;border-radius:999px;font-size:13px;font-weight:600;
-      border:1px solid var(--border);background:var(--bg-soft);color:var(--muted);
-      cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;
-    }
-    .chip:hover{color:var(--text);border-color:#3E4863}
-    .chip.on{color:var(--warn);border-color:rgba(244,196,48,.4);background:rgba(244,196,48,.1)}
-    .pairs-count{
-      font-size:14px;color:#fff;background:rgba(90,135,255,.14);
-      border:1px solid rgba(90,135,255,.32);padding:8px 15px;border-radius:999px;
-      font-weight:700;white-space:nowrap;font-family:var(--mono);
-    }
-    .pairs-count-label{color:var(--muted);font-weight:500;font-family:var(--sans)}
-    .table-wrap{
-      position:relative;
-      max-height:calc(100vh - 260px);min-height:520px;
-      overflow:auto;border:1px solid var(--border-soft);
-      border-radius:var(--radius);background:var(--card);
-      overscroll-behavior:contain;
-      scrollbar-width:thin;scrollbar-color:#2A3244 transparent;
-    }
-    .table-wrap.is-paused{border-color:rgba(244,196,48,.45)}
-    .screener{
-      margin:0;font-family:var(--mono);font-size:13px;
-      border-collapse:separate;border-spacing:0;min-width:940px;
-      --bs-table-bg:transparent;
-    }
-    .screener thead th{
-      position:sticky;top:0;z-index:5;
-      background:linear-gradient(180deg,#1A2130,#141A26);
-      border-bottom:1px solid var(--border);
-      color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
-      padding:8px 14px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;
-    }
-    .screener thead th:hover{color:#fff}
-    .screener thead th.active{color:var(--accent-2)}
-    .screener thead th.no-sort{cursor:default}
-    .sort-icon{font-size:10px;margin-left:3px}
-    .screener td{
-      padding:5px 14px;border-bottom:1px solid var(--border-soft);
-      vertical-align:middle;white-space:nowrap;
-      font-size:13px;
-      line-height:1.3;
-    }
-    .screener tbody tr{transition:background .15s, opacity .4s ease}
-    .screener tbody tr:hover td{background:rgba(255,255,255,.035)}
-    .screener tbody tr:last-child td{border-bottom:none}
-    .coin-avatar{
-      display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:0 0 auto;
-      box-shadow:0 0 0 1.5px rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.35);
-      cursor:pointer;
-    }
-    .coin-avatar img{width:100%;height:100%;object-fit:cover;display:block}
-    .coin-avatar-fb{color:#fff;font-weight:800;letter-spacing:-.5px;line-height:1}
-    .pair-cell{display:flex;align-items:center;gap:10px;min-width:150px}
-    .pair-name{display:flex;flex-direction:column;line-height:1.15;min-width:0}
-    .pair-base{color:#fff;font-weight:700;font-size:13.5px;text-decoration:none;font-family:var(--sans)}
-    a.pair-base{transition:color .15s}
-    a.pair-base:hover{color:var(--accent-2)}
-    button.pair-base{background:none;border:none;padding:0;margin:0;text-align:left;cursor:pointer;transition:color .15s}
-    button.pair-base:hover{color:var(--accent-2)}
-    .pair-quote{color:var(--faint);font-size:10px;font-weight:500}
-    .star-btn{
-      background:none;border:none;padding:3px 5px;margin-left:auto;
-      color:var(--faint);opacity:0;line-height:1;font-size:13px;cursor:pointer;
-      transition:opacity .15s,color .15s,transform .15s;
-    }
-    .screener tr:hover .star-btn{opacity:1}
-    .star-btn:hover{transform:scale(1.25);color:#F0D48A}
-    .star-btn.on{opacity:1;color:var(--warn)}
-    .px{font-weight:700;font-size:13.5px}
-    .px.up{color:var(--up)}
-    .px.down{color:var(--down)}
-    @keyframes flashUp{0%{background:rgba(23,214,140,.3)}100%{background:transparent}}
-    @keyframes flashDown{0%{background:rgba(255,84,112,.3)}100%{background:transparent}}
-    .flash-up{animation:flashUp .9s ease-out}
-    .flash-down{animation:flashDown .9s ease-out}
-    .badge-chg{
-      padding:3px 9px;border-radius:6px;font-weight:700;font-size:12px;
-      display:inline-block;min-width:70px;text-align:right;font-family:var(--mono);
-    }
-    .badge-chg.up{color:var(--up);background:var(--up-bg)}
-    .badge-chg.down{color:var(--down);background:var(--down-bg)}
-    .badge-chg.flat{color:var(--muted);background:rgba(255,255,255,.06)}
-    .mcap-badge{
-      font-weight:800;padding:3px 10px;border-radius:6px;min-width:64px;font-size:12.5px;
-      display:inline-block;text-align:center;
-      background:linear-gradient(135deg,rgba(90,135,255,.18),rgba(140,176,255,.09));
-      color:var(--accent-2);border:1px solid rgba(90,135,255,.3);
-    }
-    .mcap-badge.mcap-hot{
-      background:linear-gradient(135deg,rgba(244,196,48,.22),rgba(244,196,48,.09));
-      color:var(--warn);border-color:rgba(244,196,48,.4);
-    }
-    .mcap-badge.mcap-pending{
-      background:rgba(255,255,255,.05);
-      color:var(--faint);border-color:var(--border-soft);
-      font-weight:600;
-    }
-    .vol-cell{color:var(--muted);font-size:12.5px}
-    .pulse-bar{display:inline-flex;gap:3px;align-items:flex-end;height:16px}
-    .pulse-bar i{width:3px;border-radius:2px;background:#333D52;transition:height .2s,opacity .2s}
-    .pulse-bar i.u{background:var(--up)}
-    .pulse-bar i.d{background:var(--down)}
-    .empty-state{padding:72px 20px;text-align:center;color:var(--muted)}
-    .empty-state .bi{font-size:38px;opacity:.35;display:block}
-    .empty-state .fw-semibold{font-size:15px}
-    .spinner-dim{width:2.4rem;height:2.4rem;color:var(--accent);display:block;margin:0 auto 16px}
-    .app-footer{color:var(--faint);font-size:12px}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B0E14">
+<title>Live Chart &amp; Screener</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230B0E14'/%3E%3Cpath d='M12 42 L24 28 L32 34 L46 16' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M40 16 h6 v6' fill='none' stroke='%230ECB81' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://stream.binance.com">
+<link rel="preconnect" href="https://api.binance.com">
+<link rel="preconnect" href="https://assets.coincap.io" crossorigin>
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<link rel="preconnect" href="https://api.coingecko.com" crossorigin>
+<link rel="preconnect" href="https://api.coinpaprika.com" crossorigin>
+<link rel="preconnect" href="https://static.coinpaprika.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+[v-cloak]{display:none}
+:root{
+  --bg:#0B0E14;
+  --bg-soft:#0F131D;
+  --card:#11151F;
+  --card-2:#161C29;
+  --border:#2A3244;
+  --border-soft:#1D2432;
+  --text:#E4E8F1;
+  --muted:#8891A5;
+  --faint:#626B80;
+  --up:#17D68C;
+  --down:#FF5470;
+  --accent:#5A87FF;
+  --accent-2:#8CB0FF;
+  --warn:#F4C430;
+  --up-bg:rgba(23,214,140,.14);
+  --down-bg:rgba(255,84,112,.14);
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+::selection{background:rgba(90,135,255,.35);color:#fff}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:#2A3244;border-radius:7px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
+html,body{height:100%;margin:0;overflow:hidden}
+body{
+  font-family:var(--sans);color:var(--text);font-size:14px;
+  background:
+    radial-gradient(1100px 500px at 85% -10%, rgba(90,135,255,.09), transparent 60%),
+    radial-gradient(900px 420px at -10% 0%, rgba(23,214,140,.06), transparent 55%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+.font-mono{font-family:var(--mono)}
 
-    /* --- Ghost / history rows --- */
-    .row-ghost{opacity:.5;filter:grayscale(70%);}
-    .row-ghost td{color:var(--faint) !important;}
-    .row-ghost .px{color:var(--faint) !important;}
-    .row-ghost .pair-base{color:var(--faint) !important;}
-    .row-ghost .badge-chg{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;}
-    .row-ghost .mcap-badge{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;border-color:var(--border-soft) !important;}
-    .row-ghost .pulse-bar i{background:#333D52 !important;}
-    .row-ghost .star-btn{pointer-events:none;opacity:.35 !important;}  /* запрет для всех star-btn в ghost */
-    .row-ghost .star-btn.block-btn{pointer-events:auto;opacity:1 !important;}  /* разрешаем для кнопки block */
-    .row-ghost .coin-avatar{filter:grayscale(100%);opacity:.7}
-    .row-ghost:hover td{background:transparent !important;}
-    .ghost-tag{
-      font-size:10px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;
-      color:var(--faint);border:1px solid var(--border-soft);border-radius:5px;
-      padding:1px 6px;margin-left:8px;white-space:nowrap;
-    }
+/* ============ PAGE LAYOUT ============ */
+#page{display:flex;height:100vh;width:100vw;overflow:hidden}
+#chartPane{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;height:100vh;background:var(--bg);border-right:1px solid var(--border-soft)}
+#screenerPane{flex:0 0 480px;max-width:46vw;height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+@media (max-width:900px){
+  #page{flex-direction:column}
+  #chartPane{height:56vh;border-right:none;border-bottom:1px solid var(--border-soft)}
+  #screenerPane{flex:1 1 auto;max-width:100vw;height:44vh}
+}
 
-    /* --- Fire alert row (big % move in the last minute) --- */
-    .fire-icon-on{color:#FF7A1A !important;text-shadow:0 0 8px rgba(255,120,0,.7)}
-    .fire-input-on{border-color:rgba(255,122,26,.55) !important;color:#fff !important}
-    .fire-input-on:focus{box-shadow:0 0 0 3px rgba(255,122,26,.22) !important;border-color:#FF7A1A !important}
-    @keyframes fireGlow{
-      0%,100%{box-shadow:inset 0 0 0 2px rgba(255,138,0,.9), 0 0 10px 2px rgba(255,90,0,.5), 0 0 22px rgba(255,60,0,.28)}
-      50%{box-shadow:inset 0 0 0 3px rgba(255,60,0,1), 0 0 20px 5px rgba(255,60,0,.9), 0 0 40px rgba(255,30,0,.55)}
-    }
-    @keyframes fireBg{
-      0%,100%{background-color:rgba(255,120,20,.10)}
-      50%{background-color:rgba(255,70,0,.24)}
-    }
-    .row-fire td{
-      position:relative;
-      animation:fireGlow .85s ease-in-out infinite, fireBg .85s ease-in-out infinite;
-    }
-    .row-fire:hover td{background-color:rgba(255,90,0,.28) !important}
-    .row-fire .pair-base{color:#FFB347 !important;text-shadow:0 0 8px rgba(255,120,0,.85)}
-    .row-fire .px{text-shadow:0 0 6px currentColor}
-    .fire-icon{
-      display:inline-flex;margin-left:6px;font-size:13px;line-height:1;
-      animation:fireFlicker .55s ease-in-out infinite alternate;
-      filter:drop-shadow(0 0 5px rgba(255,110,0,.9));
-    }
-    @keyframes fireFlicker{
-      from{transform:scale(1) rotate(-4deg);opacity:.8}
-      to{transform:scale(1.2) rotate(4deg);opacity:1}
-    }
+/* ============ CHART PANE ============ */
+#chartPane .chart-header{
+  display:flex;align-items:center;gap:14px;padding:0 14px;height:52px;
+  background:var(--card);border-bottom:1px solid var(--border-soft);flex-shrink:0;
+}
+#chartPane .symbol-box input{
+  background:var(--bg-soft);border:1px solid var(--border);color:var(--text);
+  font-family:var(--mono);font-size:13px;letter-spacing:.3px;padding:7px 10px;
+  border-radius:7px;width:130px;outline:none;text-transform:uppercase;
+}
+#chartPane .symbol-box input:focus{border-color:var(--accent)}
+#chartPane .interval-row{display:flex;gap:4px}
+#chartPane .ivl{
+  background:transparent;border:none;color:var(--muted);font-family:var(--mono);
+  font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;transition:all .12s ease;
+}
+#chartPane .ivl:hover{color:var(--text);background:var(--border-soft)}
+#chartPane .ivl.active{background:var(--accent);color:#fff}
+#chartPane .header-spacer{flex:1}
+#chartPane .price-summary{display:flex;align-items:baseline;gap:12px;font-family:var(--mono)}
+#chartPane .price-summary .last{font-size:19px;font-weight:700;letter-spacing:.2px;color:#fff}
+#chartPane .price-summary .pct{font-size:12.5px;font-weight:700;padding:3px 8px;border-radius:5px}
+#chartPane .pct.up{color:var(--up);background:var(--up-bg)}
+#chartPane .pct.down{color:var(--down);background:var(--down-bg)}
+#chartPane .active-token{
+  display:flex;align-items:center;gap:8px;font-family:var(--sans);font-weight:700;font-size:13px;color:#fff;
+}
+#chartPane .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--faint);box-shadow:0 0 0 3px transparent;transition:all .2s}
+#chartPane .conn-dot.live{background:var(--up);box-shadow:0 0 0 3px var(--up-bg)}
+#chartPane .ohlc-strip{
+  display:flex;gap:22px;padding:7px 14px;font-family:var(--mono);font-size:11.5px;
+  color:var(--muted);background:var(--card);border-bottom:1px solid var(--border-soft);flex-shrink:0;
+}
+#chartPane .ohlc-strip b{color:var(--faint);font-weight:500;margin-right:5px}
+#chartPane .ohlc-strip span{color:var(--text)}
+#chartPane .ohlc-strip span.up{color:var(--up)}
+#chartPane .ohlc-strip span.down{color:var(--down)}
+#chart-wrap{position:relative;flex:1;min-height:0;background:var(--bg)}
+#chartCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+#chartPane .hint{
+  position:absolute;left:14px;top:12px;font-family:var(--mono);font-size:10px;color:var(--faint);
+  background:rgba(12,14,17,.6);padding:4px 8px;border-radius:5px;border:1px solid var(--border-soft);
+  pointer-events:none;z-index:5;max-width:calc(100% - 28px);
+}
+#chartPane .loading{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;color:var(--muted);background:var(--bg);
+  z-index:10;transition:opacity .2s;
+}
+#chartPane .loading.hidden{opacity:0;pointer-events:none}
 
-    /* --- Floating TradingView chart windows --- */
-    .chart-float{
-      position:fixed;z-index:200;
-      width:min(760px, calc(100vw - 24px));
-      height:min(520px, calc(100vh - 24px));
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      box-shadow:0 20px 60px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.4);
-      display:flex;flex-direction:column;
-      overflow:hidden;
-      resize:both;
-      min-width:340px;min-height:280px;
-    }
-    .chart-float-header{
-      display:flex;align-items:center;gap:10px;
-      padding:9px 10px 9px 14px;
-      background:linear-gradient(180deg,#1A2130,#141A26);
-      border-bottom:1px solid var(--border);
-      cursor:move;user-select:none;flex:0 0 auto;
-    }
-    .chart-float-title{
-      display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;
-    }
-    .chart-float-title .coin-avatar{flex:0 0 auto}
-    .chart-float-name{color:#fff;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .chart-float-quote{color:var(--faint);font-size:11px;font-family:var(--mono)}
-    .chart-float-actions{display:flex;align-items:center;gap:4px;flex:0 0 auto}
-    .cf-btn{
-      background:var(--bg-soft);border:1px solid var(--border);color:var(--muted);
-      width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
-      cursor:pointer;transition:color .15s,border-color .15s,background .15s;font-size:13px;
-      text-decoration:none;
-    }
-    .cf-btn:hover{color:#fff;border-color:#3E4863;background:var(--card-2)}
-    .chart-float-body{flex:1 1 auto;position:relative;background:#0B0E14}
-    .chart-float-body iframe{width:100%;height:100%;border:0;display:block}
-    .chart-float-loading{
-      position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);
-      font-size:13px;pointer-events:none;
-    }
+/* ============ SCREENER PANE ============ */
+#screenerPane .sidebar-topbar{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 12px;border-bottom:1px solid var(--border-soft);background:rgba(11,14,20,.9);
+}
+.brand-mark{
+  width:30px;height:30px;border-radius:9px;flex:0 0 auto;
+  background:linear-gradient(135deg,#5A87FF,#8CB0FF);
+  display:grid;place-items:center;color:#fff;font-size:14px;
+  box-shadow:0 4px 16px rgba(90,135,255,.4);
+}
+.brand-title{font-size:13px;font-weight:800;letter-spacing:.2px;color:#fff;line-height:1}
+.status-chip{
+  display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;
+  border:1px solid var(--border);background:var(--card);font-family:var(--mono);
+  font-size:11.5px;font-weight:500;color:var(--text);white-space:nowrap;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.status-dot.live{background:var(--up);box-shadow:0 0 8px var(--up)}
+.status-dot.bad{background:var(--down);box-shadow:0 0 8px var(--down)}
+.status-dot.connecting{background:var(--warn);box-shadow:0 0 8px var(--warn);animation:blink 1.1s infinite}
+@keyframes blink{50%{opacity:.25}}
 
-    /* --- Mini chart preview (hover on avatar) --- */
-    .chart-preview {
-      position: fixed;
-      z-index: 1000;
-      pointer-events: none;
-      background: var(--card-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 6px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.6);
-    }
-    .chart-preview svg {
-      display: block;
-      background: var(--bg);
-      border-radius: 4px;
-    }
+#screenerPane .sidebar-main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:8px;padding:8px;overflow:hidden}
 
-    /* --- Modal backdrop (for blocklist) --- */
-    .modal-backdrop {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,.6);
-      z-index: 1040;
-    }
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1050;
-      overflow-y: auto;
-      display: block;
-    }
+.kpi-wrap{display:flex;flex-wrap:wrap;gap:6px;flex:0 0 auto}
+.kpi{
+  flex:1 1 46%;min-width:120px;
+  background:linear-gradient(180deg,var(--card-2),var(--card));
+  border:1px solid var(--border-soft);border-radius:11px;padding:8px 10px;
+  display:flex;align-items:center;gap:9px;min-width:0;
+}
+.kpi-icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+.kpi-label{font-size:9.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.kpi-value{font-family:var(--mono);font-size:14px;font-weight:700;color:#fff;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-sub{font-size:10px;color:var(--faint);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-    @media (max-width:576px){
-      .chart-float{left:12px !important;right:12px;top:auto !important;bottom:12px;width:calc(100vw - 24px) !important;height:70vh !important;}
-    }
+.panel{background:var(--card);border:1px solid var(--border-soft);border-radius:var(--radius)}
+.filters-wrap{display:flex;flex-wrap:wrap;gap:6px}
+.filter-group{flex:1 1 100%;min-width:140px}
+.form-control,.form-select{background:var(--bg-soft);border-color:var(--border);color:var(--text);border-radius:9px;font-size:12.5px}
+.form-control:focus,.form-select:focus{background:var(--bg-soft);border-color:var(--accent);box-shadow:0 0 0 3px rgba(90,135,255,.18);color:#fff}
+.input-group-text{background:var(--bg-soft);border-color:var(--border);color:var(--muted);font-size:12.5px}
+::placeholder{color:var(--faint)}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.btn-clear{background:var(--bg-soft);border:1px solid var(--border);border-left:none;color:var(--muted);padding:0 10px;transition:color .15s;cursor:pointer}
+.btn-clear:hover{color:#fff}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;
+  border:1px solid var(--border);background:var(--bg-soft);color:var(--muted);cursor:pointer;transition:all .15s;user-select:none;white-space:nowrap;
+}
+.chip:hover{color:var(--text);border-color:#3E4863}
+.chip.on{color:var(--warn);border-color:rgba(244,196,48,.4);background:rgba(244,196,48,.1)}
+.pairs-count{
+  font-size:12px;color:#fff;background:rgba(90,135,255,.14);border:1px solid rgba(90,135,255,.32);
+  padding:6px 12px;border-radius:999px;font-weight:700;white-space:nowrap;font-family:var(--mono);
+}
+.pairs-count-label{color:var(--muted);font-weight:500;font-family:var(--sans)}
 
-    @media (max-width:1399.98px){.hide-xxl{display:none}}
-    @media (max-width:1199.98px){.hide-xl{display:none}}
-    @media (max-width:991.98px){.hide-lg{display:none}}
-    @media (max-width:767.98px){.hide-md{display:none}}
-  </style>
+.table-wrap{
+  position:relative;flex:1 1 auto;min-height:0;overflow:auto;border:1px solid var(--border-soft);
+  border-radius:var(--radius);background:var(--card);overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#2A3244 transparent;
+}
+.table-wrap.is-paused{border-color:rgba(244,196,48,.45)}
+.screener{margin:0;font-family:var(--mono);font-size:12px;border-collapse:separate;border-spacing:0;min-width:820px;--bs-table-bg:transparent}
+.screener thead th{
+  position:sticky;top:0;z-index:5;background:linear-gradient(180deg,#1A2130,#141A26);
+  border-bottom:1px solid var(--border);color:var(--muted);font-size:10.5px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;padding:7px 10px;white-space:nowrap;cursor:pointer;user-select:none;transition:color .15s;
+}
+.screener thead th:hover{color:#fff}
+.screener thead th.active{color:var(--accent-2)}
+.sort-icon{font-size:9px;margin-left:3px}
+.screener td{padding:4px 10px;border-bottom:1px solid var(--border-soft);vertical-align:middle;white-space:nowrap;font-size:12px;line-height:1.3}
+.screener tbody tr{transition:background .15s, opacity .4s ease}
+.screener tbody tr:hover td{background:rgba(255,255,255,.035)}
+.screener tbody tr:last-child td{border-bottom:none}
+.row-active td{background:rgba(90,135,255,.14) !important}
+.row-active .pair-base{color:#fff !important}
+.coin-avatar{display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:0 0 auto;box-shadow:0 0 0 1.5px rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.35);cursor:pointer}
+.coin-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.coin-avatar-fb{color:#fff;font-weight:800;letter-spacing:-.5px;line-height:1}
+.pair-cell{display:flex;align-items:center;gap:8px;min-width:130px}
+.pair-name{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.pair-base{color:#fff;font-weight:700;font-size:12.5px;font-family:var(--sans);background:none;border:none;padding:0;margin:0;text-align:left;cursor:pointer;transition:color .15s}
+.pair-base:hover{color:var(--accent-2)}
+button.pair-base.visited{color:var(--faint)}
+button.pair-base.visited:hover{color:var(--accent-2)}
+.visited-check{display:inline-flex;margin-left:5px;font-size:9px;color:var(--up);vertical-align:middle;line-height:1}
+.pair-quote{color:var(--faint);font-size:9.5px;font-weight:500}
+.star-btn{background:none;border:none;padding:3px 4px;margin-left:auto;color:var(--faint);opacity:0;line-height:1;font-size:12px;cursor:pointer;transition:opacity .15s,color .15s,transform .15s}
+.screener tr:hover .star-btn{opacity:1}
+.star-btn:hover{transform:scale(1.25);color:#F0D48A}
+.star-btn.on{opacity:1;color:var(--warn)}
+.px{font-weight:700;font-size:12.5px}
+.px.up{color:var(--up)}
+.px.down{color:var(--down)}
+@keyframes flashUp{0%{background:rgba(23,214,140,.3)}100%{background:transparent}}
+@keyframes flashDown{0%{background:rgba(255,84,112,.3)}100%{background:transparent}}
+.flash-up{animation:flashUp .9s ease-out}
+.flash-down{animation:flashDown .9s ease-out}
+.badge-chg{padding:3px 8px;border-radius:6px;font-weight:700;font-size:11px;display:inline-block;min-width:60px;text-align:right;font-family:var(--mono)}
+.badge-chg.up{color:var(--up);background:var(--up-bg)}
+.badge-chg.down{color:var(--down);background:var(--down-bg)}
+.badge-chg.flat{color:var(--muted);background:rgba(255,255,255,.06)}
+.mcap-badge{
+  font-weight:800;padding:3px 9px;border-radius:6px;min-width:58px;font-size:11.5px;display:inline-block;text-align:center;
+  background:linear-gradient(135deg,rgba(90,135,255,.18),rgba(140,176,255,.09));color:var(--accent-2);border:1px solid rgba(90,135,255,.3);
+}
+.mcap-badge.mcap-hot{background:linear-gradient(135deg,rgba(244,196,48,.22),rgba(244,196,48,.09));color:var(--warn);border-color:rgba(244,196,48,.4)}
+.mcap-badge.mcap-pending{background:rgba(255,255,255,.05);color:var(--faint);border-color:var(--border-soft);font-weight:600}
+.vol-cell{color:var(--muted);font-size:11.5px}
+.empty-state{padding:56px 16px;text-align:center;color:var(--muted)}
+.empty-state .bi{font-size:32px;opacity:.35;display:block}
+.empty-state .fw-semibold{font-size:13px}
+.spinner-dim{width:2.2rem;height:2.2rem;color:var(--accent);display:block;margin:0 auto 14px}
+.app-footer{flex:0 0 auto;color:var(--faint);font-size:10.5px;padding:2px 2px}
+
+/* --- Ghost / history rows --- */
+.row-ghost{opacity:.5;filter:grayscale(70%)}
+.row-ghost td{color:var(--faint) !important}
+.row-ghost .px{color:var(--faint) !important}
+.row-ghost .pair-base{color:var(--faint) !important}
+.row-ghost .badge-chg{color:var(--faint) !important;background:rgba(255,255,255,.04) !important}
+.row-ghost .mcap-badge{color:var(--faint) !important;background:rgba(255,255,255,.04) !important;border-color:var(--border-soft) !important}
+.row-ghost .star-btn{pointer-events:none;opacity:.35 !important}
+.row-ghost .star-btn.block-btn{pointer-events:auto;opacity:1 !important}
+.row-ghost .coin-avatar{filter:grayscale(100%);opacity:.7}
+.row-ghost:hover td{background:transparent !important}
+.ghost-tag{font-size:9px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--faint);border:1px solid var(--border-soft);border-radius:5px;padding:1px 5px;margin-left:6px;white-space:nowrap}
+
+/* --- Fire alert row --- */
+.fire-icon-on{color:#FF7A1A !important;text-shadow:0 0 8px rgba(255,120,0,.7)}
+.fire-input-on{border-color:rgba(255,122,26,.55) !important;color:#fff !important}
+.fire-input-on:focus{box-shadow:0 0 0 3px rgba(255,122,26,.22) !important;border-color:#FF7A1A !important}
+@keyframes fireGlow{0%,100%{box-shadow:inset 0 0 0 2px rgba(255,138,0,.9), 0 0 10px 2px rgba(255,90,0,.5), 0 0 22px rgba(255,60,0,.28)}50%{box-shadow:inset 0 0 0 3px rgba(255,60,0,1), 0 0 20px 5px rgba(255,60,0,.9), 0 0 40px rgba(255,30,0,.55)}}
+@keyframes fireBg{0%,100%{background-color:rgba(255,120,20,.10)}50%{background-color:rgba(255,70,0,.24)}}
+.row-fire td{position:relative;animation:fireGlow .85s ease-in-out infinite, fireBg .85s ease-in-out infinite}
+.row-fire:hover td{background-color:rgba(255,90,0,.28) !important}
+.row-fire .pair-base{color:#FFB347 !important;text-shadow:0 0 8px rgba(255,120,0,.85)}
+.row-fire .px{text-shadow:0 0 6px currentColor}
+.fire-icon{display:inline-flex;margin-left:5px;font-size:12px;line-height:1;animation:fireFlicker .55s ease-in-out infinite alternate;filter:drop-shadow(0 0 5px rgba(255,110,0,.9))}
+@keyframes fireFlicker{from{transform:scale(1) rotate(-4deg);opacity:.8}to{transform:scale(1.2) rotate(4deg);opacity:1}}
+
+/* --- Mini chart preview (hover on avatar) --- */
+.chart-preview{position:fixed;z-index:1000;pointer-events:none;background:var(--card-2);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.chart-preview svg{display:block;background:var(--bg);border-radius:4px}
+
+/* --- Modal --- */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1040}
+.modal{position:fixed;inset:0;z-index:1050;overflow-y:auto;display:block}
+</style>
 </head>
 <body>
 
-<div id="app" v-cloak>
-  <header class="topbar">
-    <div class="container-xxl py-2 d-flex align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="brand-mark"><i class="bi bi-activity"></i></div>
-        <div>
+<div id="page">
+
+  <!-- ============ LEFT: CHART ============ -->
+  <div id="chartPane">
+    <div class="chart-header">
+      <div class="symbol-box">
+        <input id="symbolInput" value="BTCUSDT" spellcheck="false" maxlength="20">
+      </div>
+      <div class="interval-row" id="intervalRow">
+        <button class="ivl active" data-ivl="1m">1м</button>
+        <button class="ivl" data-ivl="5m">5м</button>
+        <button class="ivl" data-ivl="15m">15м</button>
+        <button class="ivl" data-ivl="1h">1ч</button>
+        <button class="ivl" data-ivl="4h">4ч</button>
+        <button class="ivl" data-ivl="1d">1д</button>
+      </div>
+      <div class="header-spacer"></div>
+      <div class="price-summary">
+        <span class="conn-dot" id="connDot"></span>
+        <span class="last" id="lastPrice">—</span>
+        <span class="pct" id="pctChange">—</span>
+      </div>
+    </div>
+    <div class="ohlc-strip" id="ohlcStrip">
+      <div><b>O</b><span id="ohlcO">—</span></div>
+      <div><b>H</b><span id="ohlcH">—</span></div>
+      <div><b>L</b><span id="ohlcL">—</span></div>
+      <div><b>C</b><span id="ohlcC">—</span></div>
+      <div><b>V</b><span id="ohlcV">—</span></div>
+    </div>
+    <div id="chart-wrap">
+      <canvas id="chartCanvas"></canvas>
+      <div class="loading" id="loadingOverlay">загрузка данных…</div>
+    </div>
+  </div>
+
+  <!-- ============ RIGHT: SCREENER ============ -->
+  <div id="screenerPane">
+    <div id="app" v-cloak style="display:flex;flex-direction:column;height:100%">
+      <div class="sidebar-topbar">
+        <div class="d-flex align-items-center gap-2">
+          <div class="brand-mark"><i class="bi bi-activity"></i></div>
           <div class="brand-title">Live Screener</div>
-          <div class="brand-sub">MCap & high-frequency stream</div>
         </div>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <span class="status-chip d-none d-md-inline-flex">
-          <span class="status-dot" :class="connectionStatus"></span>
-          <span :class="connectionStatus === 'live' ? '' : 'text-warning'">{{ statusText }}</span>
-          <span class="text-body-secondary" v-if="latencyMs !== null && connectionStatus === 'live'">· {{ latencyMs }}ms</span>
-        </span>
-        <span class="status-chip">
-          <i class="bi bi-broadcast" :class="connectionStatus === 'live' ? 'text-success' : 'text-secondary'"></i>
-          <span class="d-none d-sm-inline">{{ fmtUptime }}</span>
-        </span>
-      </div>
-    </div>
-  </header>
-
-  <main class="container-xxl py-3">
-    <!-- KPI Row -->
-    <section class="row g-2 mb-3">
-      <div class="col-6 col-lg-3">
-        <div class="kpi h-100">
-          <div class="kpi-icon" style="background:rgba(90,135,255,.16);color:#8CB0FF"><i class="bi bi-collection"></i></div>
-          <div class="flex-grow-1" style="min-width:0">
-            <div class="kpi-label">Tracked pairs</div>
-            <div class="kpi-value">{{ totalPairs }}</div>
-            <div class="kpi-sub">{{ filteredRows.length }} match filters</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-lg-3">
-        <div class="kpi h-100">
-          <div class="kpi-icon" style="background:rgba(23,214,140,.16);color:#17D68C"><i class="bi bi-lightning-charge-fill"></i></div>
-          <div class="flex-grow-1" style="min-width:0">
-            <div class="kpi-label">Event rate</div>
-            <div class="kpi-value">{{ ups }}<span class="fs-6 text-body-secondary">/s</span></div>
-            <div class="kpi-sub">ticker updates</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-lg-3">
-        <div class="kpi h-100">
-          <div class="kpi-icon" style="background:rgba(244,196,48,.16);color:#F4C430"><i class="bi bi-fire"></i></div>
-          <div class="flex-grow-1" style="min-width:0">
-            <div class="kpi-label">Top Market Cap</div>
-            <div class="kpi-value text-truncate">{{ leader ? leader.base : '—' }}</div>
-            <div class="kpi-sub">{{ leader ? fmtMCap(leader.mcap) : 'waiting for data' }}</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-lg-3">
-        <div class="kpi h-100">
-          <div class="kpi-icon" style="background:rgba(201,139,255,.16);color:#C98BFF"><i class="bi bi-broadcast-pin"></i></div>
-          <div class="flex-grow-1" style="min-width:0">
-            <div class="kpi-label">Stream lag</div>
-            <div class="kpi-value">{{ latencyMs === null ? '—' : latencyMs + 'ms' }}</div>
-            <div class="kpi-sub">uptime {{ fmtUptime }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Filter Panel -->
-    <section class="panel p-2 mb-3">
-      <div class="row g-2 align-items-center">
-        <!-- Search -->
-        <div class="col-12 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm">
-            <span class="input-group-text"><i class="bi bi-search"></i></span>
-            <input ref="searchEl" type="text" class="form-control font-mono" placeholder="Search pair — press /"
-                   v-model="searchQuery" autocomplete="off" spellcheck="false">
-            <button v-if="searchQuery" class="btn-clear" type="button" @click="searchQuery = ''" aria-label="Clear search">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Price Min / Max -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm">
-            <span class="input-group-text font-mono"><i class="bi bi-currency-dollar"></i></span>
-            <input type="text" class="form-control font-mono" placeholder="Px min" v-model="minPrice" inputmode="decimal">
-            <span class="input-group-text">–</span>
-            <input type="text" class="form-control font-mono" placeholder="Px max" v-model="maxPrice" inputmode="decimal">
-          </div>
-        </div>
-
-        <!-- 1m Volume Min / Max -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Volume over last 1 minute">
-            <span class="input-group-text font-mono"><i class="bi bi-bar-chart-fill"></i></span>
-            <input type="text" class="form-control font-mono" placeholder="Vol 1m min" v-model="minVol1m" inputmode="decimal">
-            <span class="input-group-text">–</span>
-            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxVol1m" inputmode="decimal">
-          </div>
-        </div>
-
-        <!-- 1m % Change Min / Max -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Price change over last 1 minute">
-            <span class="input-group-text font-mono"><i class="bi bi-percent"></i></span>
-            <input type="text" class="form-control font-mono" placeholder="1m% min" v-model="minChg1m" inputmode="decimal">
-            <span class="input-group-text">–</span>
-            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxChg1m" inputmode="decimal">
-          </div>
-        </div>
-
-        <!-- 5m % Change Min / Max -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Price change over last 5 minutes">
-            <span class="input-group-text font-mono"><i class="bi bi-percent"></i></span>
-            <input type="text" class="form-control font-mono" placeholder="5m% min" v-model="minChg5m" inputmode="decimal">
-            <span class="input-group-text">–</span>
-            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxChg5m" inputmode="decimal">
-          </div>
-        </div>
-
-        <!-- 24h Volume Min / Max -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Traded volume in last 24 hours">
-            <span class="input-group-text font-mono"><i class="bi bi-clock-history"></i></span>
-            <input type="text" class="form-control font-mono" placeholder="Vol 24h min" v-model="minVol24h" inputmode="decimal">
-            <span class="input-group-text">–</span>
-            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxVol24h" inputmode="decimal">
-          </div>
-        </div>
-
-        <!-- Market Cap Min / Max -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Aggregated market cap (CoinGecko + CoinPaprika average)">
-            <span class="input-group-text font-mono"><i class="bi bi-pie-chart-fill"></i></span>
-            <input type="text" class="form-control font-mono" placeholder="MCap min" v-model="minMcap" inputmode="decimal">
-            <span class="input-group-text">–</span>
-            <input type="text" class="form-control font-mono" placeholder="max" v-model="maxMcap" inputmode="decimal">
-          </div>
-        </div>
-
-        <!-- Fire alert threshold -->
-        <div class="col-6 col-md-6 col-lg-3">
-          <div class="input-group input-group-sm" title="Огненная подсветка + звук, когда |изменение за 1 минуту| достигает этого значения (работает и в плюс, и в минус)">
-            <span class="input-group-text font-mono" :class="{ 'fire-icon-on': fireActive }">🔥</span>
-            <input type="text" class="form-control font-mono" :class="{ 'fire-input-on': fireActive }"
-                   placeholder="Fire 1m%" v-model="fireThreshold" inputmode="decimal">
-            <button v-if="fireThreshold" class="btn-clear" type="button" @click="fireThreshold = ''" aria-label="Clear fire threshold">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Quote selection & Favorites & Blocklist button -->
-        <div class="col-12 col-md-6 col-lg-3 d-flex align-items-center justify-content-end gap-2 ms-auto">
-          <select class="form-select form-select-sm font-mono" v-model="selectedQuote" style="max-width: 105px;">
-            <option v-for="q in quotes" :key="q" :value="q">{{ q }}</option>
-            <option value="ALL">All</option>
-          </select>
-
-          <button class="chip" :class="{ on: onlyFavs }" type="button" @click="onlyFavs = !onlyFavs">
-            <i class="bi" :class="onlyFavs ? 'bi-star-fill' : 'bi-star'"></i>
-          </button>
-
-          <!-- Blocklist button -->
-          <button class="chip" type="button" @click="openBlocklistModal" :title="'Blocklist (' + blockedList.length + ')'">
-            <i class="bi bi-ban"></i>
-            <span v-if="blockedList.length" class="badge bg-secondary ms-1">{{ blockedList.length }}</span>
-          </button>
-
-          <span class="pairs-count" v-if="!hasFilters">
-            {{ filteredRows.length }}<span class="pairs-count-label"> pairs</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="status-chip">
+            <span class="status-dot" :class="connectionStatus"></span>
+            <span>{{ statusText }}</span>
+            <span v-if="latencyMs !== null && connectionStatus === 'live'">· {{ latencyMs }}ms</span>
           </span>
-          <button v-else class="chip" type="button" @click="resetFilters">
-            <i class="bi bi-x-circle"></i>Reset
-          </button>
         </div>
       </div>
-    </section>
 
-    <!-- Table -->
-    <section class="table-wrap" :class="{ 'is-paused': isPaused }"
-             @mouseenter="isPaused = true" @mouseleave="isPaused = false">
-      <table class="table screener align-middle table-hover">
-        <thead>
-          <tr>
-            <th @click="sortBy('symbol')" :class="{ active: sortKey === 'symbol' }">
-              <i class="bi bi-coin me-1"></i>Pair <i class="sort-icon" :class="getSortIcon('symbol')"></i>
-            </th>
-            <th class="text-end" @click="sortBy('price')" :class="{ active: sortKey === 'price' }">
-              Price <i class="sort-icon" :class="getSortIcon('price')"></i>
-            </th>
-            <th class="text-end" @click="sortBy('chg1m')" :class="{ active: sortKey === 'chg1m' }" title="Change over 1 minute">
-              1m % <i class="sort-icon" :class="getSortIcon('chg1m')"></i>
-            </th>
-            <th class="text-end" @click="sortBy('chg5m')" :class="{ active: sortKey === 'chg5m' }" title="Change over 5 minutes">
-              5m % <i class="sort-icon" :class="getSortIcon('chg5m')"></i>
-            </th>
-            <th class="text-end hide-lg" @click="sortBy('vol1m')" :class="{ active: sortKey === 'vol1m' }" title="Traded volume in last minute">
-              Vol 1m <i class="sort-icon" :class="getSortIcon('vol1m')"></i>
-            </th>
-            <th class="text-end hide-xl" @click="sortBy('vol24h')" :class="{ active: sortKey === 'vol24h' }" title="Traded volume in last 24 hours">
-              24h Vol <i class="sort-icon" :class="getSortIcon('vol24h')"></i>
-            </th>
-            <th class="text-end" @click="sortBy('atr1m')" :class="{ active: sortKey === 'atr1m' }" title="Average True Range (1 minute) — mean absolute percent change per minute over current session">
-              ATR 1m % <i class="sort-icon" :class="getSortIcon('atr1m')"></i>
-            </th>
-            <th class="text-end" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Aggregated market cap (CoinGecko + CoinPaprika + fallback lookup, not from Binance)">
-              MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="displayedRows.length === 0">
-            <td colspan="8">
-              <div class="empty-state">
-                <template v-if="connectionStatus !== 'live'">
-                  <div class="spinner-border spinner-dim" role="status"></div>
-                  <div class="fw-semibold text-white">Connecting to Binance stream…</div>
-                  <div class="small">Real-time ticker data will appear here</div>
-                </template>
-                <template v-else>
-                  <i class="bi bi-funnel mb-2"></i>
-                  <div class="fw-semibold text-white">No pairs match the filters</div>
-                  <button class="btn btn-sm btn-outline-primary mt-3" type="button" @click="resetFilters">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Reset filters
-                  </button>
-                </template>
+      <div class="sidebar-main">
+        <!-- KPI -->
+        <div class="kpi-wrap">
+          <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(90,135,255,.16);color:#8CB0FF"><i class="bi bi-collection"></i></div>
+            <div class="flex-grow-1" style="min-width:0">
+              <div class="kpi-label">Pairs</div>
+              <div class="kpi-value">{{ totalPairs }}</div>
+              <div class="kpi-sub">{{ filteredRows.length }} match</div>
+            </div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(23,214,140,.16);color:#17D68C"><i class="bi bi-lightning-charge-fill"></i></div>
+            <div class="flex-grow-1" style="min-width:0">
+              <div class="kpi-label">Rate</div>
+              <div class="kpi-value">{{ ups }}/s</div>
+              <div class="kpi-sub">ticks</div>
+            </div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(244,196,48,.16);color:#F4C430"><i class="bi bi-fire"></i></div>
+            <div class="flex-grow-1" style="min-width:0">
+              <div class="kpi-label">Top MCap</div>
+              <div class="kpi-value text-truncate">{{ leader ? leader.base : '—' }}</div>
+              <div class="kpi-sub">{{ leader ? fmtMCap(leader.mcap) : '—' }}</div>
+            </div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-icon" style="background:rgba(201,139,255,.16);color:#C98BFF"><i class="bi bi-broadcast-pin"></i></div>
+            <div class="flex-grow-1" style="min-width:0">
+              <div class="kpi-label">Lag</div>
+              <div class="kpi-value">{{ latencyMs === null ? '—' : latencyMs + 'ms' }}</div>
+              <div class="kpi-sub">up {{ fmtUptime }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="panel p-2">
+          <div class="filters-wrap">
+            <div class="filter-group">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input ref="searchEl" type="text" class="form-control font-mono" placeholder="Search — press /"
+                       v-model="searchQuery" autocomplete="off" spellcheck="false">
+                <button v-if="searchQuery" class="btn-clear" type="button" @click="searchQuery=''"><i class="bi bi-x-lg"></i></button>
               </div>
-            </td>
-          </tr>
-          <tr v-for="row in displayedRows" :key="row.sym"
-              :class="{ 'row-ghost': row.isGhost, 'row-fire': row.isFire && !row.isGhost }"
-              :title="row.isGhost ? 'Больше не соответствует фильтрам — остаётся в истории' : (row.isFire ? 'Резкое движение цены за 1 минуту' : null)">
-            <td>
-              <div class="pair-cell">
-                <span @mouseenter="showPreview($event, row)" @mouseleave="hidePreview">
-                  <coin-icon :symbol="row.base" :size="24"></coin-icon>
-                </span>
-                <div class="pair-name">
-                  <button type="button" class="pair-base"
-                          @click="openBitunix(row)" :title="'Открыть ' + row.base + ' на Bitunix'">{{ row.base }}</button>
-                  <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
-                </div>
-                <span v-if="row.isFire && !row.isGhost" class="fire-icon" aria-hidden="true">🔥</span>
-                <span v-if="row.isGhost" class="ghost-tag">history</span>
-                <div class="d-flex align-items-center gap-1 ms-1">
-                  <button v-if="!row.isGhost" class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
-                          @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
-                    <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
-                  </button>
-                  <!-- Добавлен класс block-btn -->
-                  <button class="star-btn block-btn" type="button"
-                          @click="toggleBlock(row.sym)" :title="isBlocked(row.sym) ? 'Unblock pair' : 'Block pair'">
-                    <i class="bi" :class="isBlocked(row.sym) ? 'bi-eye' : 'bi-eye-slash'"></i>
-                  </button>
-                </div>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm">
+                <span class="input-group-text font-mono"><i class="bi bi-currency-dollar"></i></span>
+                <input type="text" class="form-control font-mono" placeholder="Px min" v-model="minPrice" inputmode="decimal">
+                <span class="input-group-text">–</span>
+                <input type="text" class="form-control font-mono" placeholder="Px max" v-model="maxPrice" inputmode="decimal">
               </div>
-            </td>
-            <td class="text-end" :class="row.flashCls">
-              <span class="px" :class="row.c1m.cls === 'up' ? 'up' : row.c1m.cls === 'down' ? 'down' : ''">
-                {{ fmtPrice(row.price) }}
-              </span>
-            </td>
-            <td class="text-end"><span class="badge-chg" :class="row.c1m.cls">{{ row.c1m.text }}</span></td>
-            <td class="text-end"><span class="badge-chg" :class="row.c5m.cls">{{ row.c5m.text }}</span></td>
-            <td class="text-end vol-cell hide-lg">{{ fmtVol(row.vol1m) }}</td>
-            <td class="text-end vol-cell hide-xl">{{ fmtVol(row.vol24h) }}</td>
-            <td class="text-end vol-cell">
-              <template v-if="row.atr1m !== null">{{ row.atr1m.toFixed(3) }}%</template>
-              <template v-else>—</template>
-            </td>
-            <td class="text-end">
-              <span class="mcap-badge" :class="{ 'mcap-hot': row.mcap >= 1e9, 'mcap-pending': row.mcap === null && row.mcapPending }"
-                    :title="row.mcap === null && row.mcapPending ? 'Ищем через резервный источник…' : ''">
-                {{ row.mcap === null && row.mcapPending ? '…' : fmtMCap(row.mcap) }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm" title="Volume over last 1 minute">
+                <span class="input-group-text font-mono"><i class="bi bi-bar-chart-fill"></i></span>
+                <input type="text" class="form-control font-mono" placeholder="Vol 1m min" v-model="minVol1m" inputmode="decimal">
+                <span class="input-group-text">–</span>
+                <input type="text" class="form-control font-mono" placeholder="max" v-model="maxVol1m" inputmode="decimal">
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm" title="Price change over last 1 minute">
+                <span class="input-group-text font-mono"><i class="bi bi-percent"></i></span>
+                <input type="text" class="form-control font-mono" placeholder="1m% min" v-model="minChg1m" inputmode="decimal">
+                <span class="input-group-text">–</span>
+                <input type="text" class="form-control font-mono" placeholder="max" v-model="maxChg1m" inputmode="decimal">
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm" title="Price change over last 5 minutes">
+                <span class="input-group-text font-mono"><i class="bi bi-percent"></i></span>
+                <input type="text" class="form-control font-mono" placeholder="5m% min" v-model="minChg5m" inputmode="decimal">
+                <span class="input-group-text">–</span>
+                <input type="text" class="form-control font-mono" placeholder="max" v-model="maxChg5m" inputmode="decimal">
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm" title="Traded volume in last 24 hours">
+                <span class="input-group-text font-mono"><i class="bi bi-clock-history"></i></span>
+                <input type="text" class="form-control font-mono" placeholder="Vol 24h min" v-model="minVol24h" inputmode="decimal">
+                <span class="input-group-text">–</span>
+                <input type="text" class="form-control font-mono" placeholder="max" v-model="maxVol24h" inputmode="decimal">
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm" title="Aggregated market cap in millions USD">
+                <span class="input-group-text font-mono"><i class="bi bi-pie-chart-fill"></i></span>
+                <input type="text" class="form-control font-mono" placeholder="MCap min, M" v-model="minMcap" inputmode="decimal">
+                <span class="input-group-text">–</span>
+                <input type="text" class="form-control font-mono" placeholder="max, M" v-model="maxMcap" inputmode="decimal">
+              </div>
+            </div>
+            <div class="filter-group">
+              <div class="input-group input-group-sm" title="Огненная подсветка + звук, когда |изменение за 1 минуту| достигает этого значения">
+                <span class="input-group-text font-mono" :class="{ 'fire-icon-on': fireActive }">🔥</span>
+                <input type="text" class="form-control font-mono" :class="{ 'fire-input-on': fireActive }"
+                       placeholder="Fire 1m%" v-model="fireThreshold" inputmode="decimal">
+                <button v-if="fireThreshold" class="btn-clear" type="button" @click="fireThreshold=''"><i class="bi bi-x-lg"></i></button>
+              </div>
+            </div>
+            <div class="filter-group d-flex align-items-center gap-2">
+              <select class="form-select form-select-sm font-mono" v-model="selectedQuote" style="max-width:95px">
+                <option v-for="q in quotes" :key="q" :value="q">{{ q }}</option>
+                <option value="ALL">All</option>
+              </select>
+              <button class="chip" :class="{ on: onlyFavs }" type="button" @click="onlyFavs = !onlyFavs">
+                <i class="bi" :class="onlyFavs ? 'bi-star-fill' : 'bi-star'"></i>
+              </button>
+              <button class="chip" type="button" @click="openBlocklistModal" :title="'Blocklist (' + blockedList.length + ')'">
+                <i class="bi bi-ban"></i>
+                <span v-if="blockedList.length" class="badge bg-secondary ms-1">{{ blockedList.length }}</span>
+              </button>
+              <span class="pairs-count ms-auto" v-if="!hasFilters">{{ filteredRows.length }}<span class="pairs-count-label"> pairs</span></span>
+              <button v-else class="chip ms-auto" type="button" @click="resetFilters"><i class="bi bi-x-circle"></i>Reset</button>
+            </div>
+          </div>
+        </div>
 
-    <footer class="app-footer d-flex flex-wrap justify-content-between gap-2 mt-3">
-      <span><i class="bi bi-broadcast me-1"></i>Binance spot · !miniTicker stream</span>
-      <span>Prices indicative · Not financial advice</span>
-    </footer>
-  </main>
+        <!-- Table -->
+        <section class="table-wrap" :class="{ 'is-paused': isPaused }"
+                 @mouseenter="isPaused = true" @mouseleave="isPaused = false">
+          <table class="table screener align-middle table-hover">
+            <thead>
+              <tr>
+                <th @click="sortBy('symbol')" :class="{ active: sortKey === 'symbol' }">
+                  <i class="bi bi-coin me-1"></i>Pair <i class="sort-icon" :class="getSortIcon('symbol')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('price')" :class="{ active: sortKey === 'price' }">
+                  Price <i class="sort-icon" :class="getSortIcon('price')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('chg1m')" :class="{ active: sortKey === 'chg1m' }" title="Change over 1 minute">
+                  1m % <i class="sort-icon" :class="getSortIcon('chg1m')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('chg5m')" :class="{ active: sortKey === 'chg5m' }" title="Change over 5 minutes">
+                  5m % <i class="sort-icon" :class="getSortIcon('chg5m')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('vol1m')" :class="{ active: sortKey === 'vol1m' }" title="Traded volume in last minute">
+                  Vol 1m <i class="sort-icon" :class="getSortIcon('vol1m')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('vol24h')" :class="{ active: sortKey === 'vol24h' }" title="Traded volume in last 24 hours">
+                  24h Vol <i class="sort-icon" :class="getSortIcon('vol24h')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('atr1m')" :class="{ active: sortKey === 'atr1m' }" title="Average True Range (rolling 10 minutes)">
+                  ATR 10m % <i class="sort-icon" :class="getSortIcon('atr1m')"></i>
+                </th>
+                <th class="text-end" @click="sortBy('mcap')" :class="{ active: sortKey === 'mcap' }" title="Aggregated market cap">
+                  MCap <i class="sort-icon" :class="getSortIcon('mcap')"></i>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="displayedRows.length === 0">
+                <td colspan="8">
+                  <div class="empty-state">
+                    <template v-if="connectionStatus !== 'live'">
+                      <div class="spinner-border spinner-dim" role="status"></div>
+                      <div class="fw-semibold text-white">Connecting to Binance stream…</div>
+                      <div class="small">Real-time ticker data will appear here</div>
+                    </template>
+                    <template v-else>
+                      <i class="bi bi-funnel mb-2"></i>
+                      <div class="fw-semibold text-white">No pairs match the filters</div>
+                      <button class="btn btn-sm btn-outline-primary mt-3" type="button" @click="resetFilters">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset filters
+                      </button>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+              <tr v-for="row in displayedRows" :key="row.sym"
+                  :class="{ 'row-ghost': row.isGhost, 'row-fire': row.isFire && !row.isGhost, 'row-active': row.sym === activeSymbol }"
+                  :title="row.isGhost ? 'Больше не соответствует фильтрам — остаётся в истории' : (row.isFire ? 'Резкое движение цены за 1 минуту' : null)">
+                <td>
+                  <div class="pair-cell">
+                    <span @mouseenter="showPreview($event, row)" @mouseleave="hidePreview">
+                      <coin-icon :symbol="row.base" :size="22"></coin-icon>
+                    </span>
+                    <div class="pair-name">
+                      <button type="button" class="pair-base" :class="{ visited: isVisited(row.sym) }"
+                              @click="selectToken(row)" :title="'Показать ' + row.base + ' на графике'">{{ row.base }}<span v-if="isVisited(row.sym)" class="visited-check" aria-hidden="true"><i class="bi bi-check-circle-fill"></i></span></button>
+                      <span class="pair-quote" v-if="row.quote">/ {{ row.quote }}</span>
+                    </div>
+                    <span v-if="row.isFire && !row.isGhost" class="fire-icon" aria-hidden="true">🔥</span>
+                    <span v-if="row.isGhost" class="ghost-tag">history</span>
+                    <div class="d-flex align-items-center gap-1 ms-1">
+                      <button v-if="!row.isGhost" class="star-btn" :class="{ on: isFav(row.sym) }" type="button"
+                              @click="toggleFav(row.sym)" :title="isFav(row.sym) ? 'Unpin pair' : 'Pin pair'">
+                        <i class="bi" :class="isFav(row.sym) ? 'bi-star-fill' : 'bi-star'"></i>
+                      </button>
+                      <button class="star-btn block-btn" type="button"
+                              @click="toggleBlock(row.sym)" :title="isBlocked(row.sym) ? 'Unblock pair' : 'Block pair'">
+                        <i class="bi" :class="isBlocked(row.sym) ? 'bi-eye' : 'bi-eye-slash'"></i>
+                      </button>
+                    </div>
+                  </div>
+                </td>
+                <td class="text-end" :class="row.flashCls">
+                  <span class="px" :class="row.c1m.cls === 'up' ? 'up' : row.c1m.cls === 'down' ? 'down' : ''">
+                    {{ fmtPrice(row.price) }}
+                  </span>
+                </td>
+                <td class="text-end"><span class="badge-chg" :class="row.c1m.cls">{{ row.c1m.text }}</span></td>
+                <td class="text-end"><span class="badge-chg" :class="row.c5m.cls">{{ row.c5m.text }}</span></td>
+                <td class="text-end vol-cell">{{ fmtVol(row.vol1m) }}</td>
+                <td class="text-end vol-cell">{{ fmtVol(row.vol24h) }}</td>
+                <td class="text-end vol-cell">
+                  <template v-if="row.atr1m !== null">{{ row.atr1m.toFixed(3) }}%</template>
+                  <template v-else>—</template>
+                </td>
+                <td class="text-end">
+                  <span class="mcap-badge" :class="{ 'mcap-hot': row.mcap >= 1e9, 'mcap-pending': row.mcap === null && row.mcapPending }"
+                        :title="row.mcap === null && row.mcapPending ? 'Ищем через резервный источник…' : ''">
+                    {{ row.mcap === null && row.mcapPending ? '…' : fmtMCap(row.mcap) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
 
-  <!-- Floating TradingView chart windows (multiple at once) -->
-  <div v-for="c in charts" :key="c.id" class="chart-float"
-       :ref="el => setChartRef(c.id, el)"
-       :style="{ left: c.x + 'px', top: c.y + 'px', zIndex: c.z }"
-       @mousedown="bringToFront(c.id)">
-    <div class="chart-float-header" @mousedown="startDrag($event, c)">
-      <div class="chart-float-title">
-        <coin-icon :symbol="c.base" :size="20"></coin-icon>
-        <span class="chart-float-name">{{ c.base }}</span>
-        <span class="chart-float-quote" v-if="c.quote">/ {{ c.quote }}</span>
+        <footer class="app-footer d-flex justify-content-between gap-2">
+          <span><i class="bi bi-broadcast me-1"></i>Binance spot</span>
+          <span>Not financial advice</span>
+        </footer>
       </div>
-      <div class="chart-float-actions">
-        <a class="cf-btn" :href="binanceUrl(c)" target="_blank" rel="noopener" title="Открыть на Binance" @mousedown.stop>
-          <i class="bi bi-box-arrow-up-right"></i>
-        </a>
-        <button class="cf-btn" type="button" title="Закрыть" @mousedown.stop @click="closeChart(c.id)">
-          <i class="bi bi-x-lg"></i>
-        </button>
+
+      <!-- Mini chart preview -->
+      <div class="chart-preview" v-if="previewRow" :style="{ left: previewX + 'px', top: previewY + 'px' }">
+        <mini-chart :data="previewRow.history"></mini-chart>
       </div>
-    </div>
-    <div class="chart-float-body">
-      <div class="chart-float-loading" v-if="c.loading">
-        <div class="spinner-border spinner-border-sm text-secondary"></div>
+
+      <!-- Blocklist Modal -->
+      <div v-if="showBlocklistModal" class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+          <div class="modal-content" style="background-color:#11151F; color:#E4E8F1; border:1px solid #2A3244;">
+            <div class="modal-header border-secondary">
+              <h5 class="modal-title">Blocked pairs</h5>
+              <button type="button" class="btn-close btn-close-white" @click="closeBlocklistModal"></button>
+            </div>
+            <div class="modal-body">
+              <div v-if="blockedList.length === 0" class="text-muted">No blocked pairs</div>
+              <ul class="list-group list-group-flush">
+                <li v-for="sym in blockedList" :key="sym" class="list-group-item bg-transparent text-light d-flex justify-content-between align-items-center border-secondary">
+                  <span class="font-mono">{{ sym }}</span>
+                  <button class="btn btn-sm btn-outline-warning" @click="toggleBlock(sym)">Unblock</button>
+                </li>
+              </ul>
+            </div>
+            <div class="modal-footer border-secondary">
+              <button class="btn btn-secondary" @click="closeBlocklistModal">Close</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <iframe :key="c.sym" :src="chartSrcFor(c)" @load="c.loading = false"
-              allowtransparency="true" scrolling="no"></iframe>
+      <div v-if="showBlocklistModal" class="modal-backdrop fade show"></div>
     </div>
   </div>
 
-  <!-- Mini chart preview -->
-  <div class="chart-preview" v-if="previewRow" :style="{ left: previewX + 'px', top: previewY + 'px' }">
-    <mini-chart :data="previewRow.history"></mini-chart>
-  </div>
-
-  <!-- Blocklist Modal -->
-  <div v-if="showBlocklistModal" class="modal fade show" style="display:block" tabindex="-1">
-    <div class="modal-dialog modal-dialog-scrollable">
-      <div class="modal-content" style="background-color:#11151F; color:#E4E8F1; border:1px solid #2A3244;">
-        <div class="modal-header border-secondary">
-          <h5 class="modal-title">Blocked pairs</h5>
-          <button type="button" class="btn-close btn-close-white" @click="closeBlocklistModal"></button>
-        </div>
-        <div class="modal-body">
-          <div v-if="blockedList.length === 0" class="text-muted">No blocked pairs</div>
-          <ul class="list-group list-group-flush">
-            <li v-for="sym in blockedList" :key="sym" class="list-group-item bg-transparent text-light d-flex justify-content-between align-items-center border-secondary">
-              <span class="font-mono">{{ sym }}</span>
-              <button class="btn btn-sm btn-outline-warning" @click="toggleBlock(sym)">Unblock</button>
-            </li>
-          </ul>
-        </div>
-        <div class="modal-footer border-secondary">
-          <button class="btn btn-secondary" @click="closeBlocklistModal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div v-if="showBlocklistModal" class="modal-backdrop fade show"></div>
 </div>
 
+<!-- ============ CHART SCRIPT ============ -->
+<script>
+(function(){
+  "use strict";
+
+  const COLORS = {
+    up: '#17D68C', down: '#FF5470',
+    upSoft: 'rgba(23,214,140,0.18)', downSoft: 'rgba(255,84,112,0.18)',
+    grid: 'rgba(255,255,255,0.05)',
+    gridStrong: 'rgba(255,255,255,0.09)',
+    axisText: '#5c6270',
+    crosshair: 'rgba(255,255,255,0.28)',
+    accent: '#5A87FF',
+    bg: '#0B0E14',
+    axisBg: '#11151F',
+    daySeparator: 'rgba(255,255,255,0.12)'
+  };
+  const AXIS_W = 74;
+  const TIME_AXIS_H = 26;
+  const VOL_FRAC = 0.20;
+  const PAD_TOP = 14;
+  const PAD_BOTTOM = 10;
+  const DEFAULT_LIMIT = 1000;
+
+  const state = {
+    symbol: 'BTCUSDT',
+    interval: '1m',
+    candles: [],
+    candleWidth: 20,
+    offset: 0,
+    limit: DEFAULT_LIMIT,
+    ws: null,
+    wsToken: 0,
+    lastTradePrice: null,
+    ticker24h: null,
+    mouse: {x:null, y:null, inChart:false},
+    dragging:false, dragStartX:0, dragStartY:0, dragStartOffset:0, dragStartPriceRange:null, didDrag:false,
+    axisDragging:false, axisDragStartY:0, axisDragBaseRange:null,
+    manualPriceRange: null,
+    shiftDown:false,
+    measureToolActive:false,
+    pendingMeasurement:null,
+    measurements:[],
+    hoverIndex:null,
+    historyLoading:false
+  };
+
+  const canvas = document.getElementById('chartCanvas');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('chart-wrap');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const lastPriceEl = document.getElementById('lastPrice');
+  const pctChangeEl = document.getElementById('pctChange');
+  const connDot = document.getElementById('connDot');
+  const symbolInput = document.getElementById('symbolInput');
+  const ohlcO = document.getElementById('ohlcO');
+  const ohlcH = document.getElementById('ohlcH');
+  const ohlcL = document.getElementById('ohlcL');
+  const ohlcC = document.getElementById('ohlcC');
+  const ohlcV = document.getElementById('ohlcV');
+
+  let cssW = 0, cssH = 0;
+
+  function decimalsForPrice(p){
+    if(p >= 1000) return 2;
+    if(p >= 100) return 2;
+    if(p >= 1) return 4;
+    if(p >= 0.01) return 6;
+    return 8;
+  }
+  function fmtPrice(p){
+    if(p == null || isNaN(p)) return '—';
+    const d = decimalsForPrice(Math.abs(p));
+    return p.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+  function fmtVol(v){
+    if(v == null || isNaN(v)) return '—';
+    if(v >= 1e9) return (v/1e9).toFixed(2)+'B';
+    if(v >= 1e6) return (v/1e6).toFixed(2)+'M';
+    if(v >= 1e3) return (v/1e3).toFixed(2)+'K';
+    return v.toFixed(2);
+  }
+  function fmtPct(p){
+    if(p == null || isNaN(p)) return '—';
+    return (p>=0?'+':'') + p.toFixed(2) + '%';
+  }
+  function niceStep(range, targetTicks){
+    if(range <= 0) return 1;
+    const raw = range/targetTicks;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw/mag;
+    let step;
+    if(norm < 1.5) step = 1;
+    else if(norm < 3) step = 2;
+    else if(norm < 7) step = 5;
+    else step = 10;
+    return step*mag;
+  }
+  const INTERVAL_MS = {
+    '1m':60e3,'3m':180e3,'5m':300e3,'15m':900e3,'30m':1800e3,
+    '1h':3600e3,'2h':7200e3,'4h':14400e3,'6h':21600e3,'8h':28800e3,
+    '12h':43200e3,'1d':86400e3,'3d':259200e3,'1w':604800e3
+  };
+  function fmtTimeAxis(ts, interval){
+    const d = new Date(ts);
+    const msPerBar = INTERVAL_MS[interval] || 60e3;
+    const day = d.getDate().toString().padStart(2,'0');
+    const month = (d.getMonth()+1).toString().padStart(2,'0');
+    if(msPerBar >= 86400e3){
+      return day+'.'+month;
+    }
+    const hh = d.getHours().toString().padStart(2,'0');
+    const mm = d.getMinutes().toString().padStart(2,'0');
+    if (hh === '00' && mm === '00') {
+      return day+'.'+month;
+    }
+    return hh+':'+mm;
+  }
+
+  function fitCanvas(){
+    const rect = wrap.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    cssW = rect.width; cssH = rect.height;
+    canvas.width = Math.round(cssW*dpr);
+    canvas.height = Math.round(cssH*dpr);
+    canvas.style.width = cssW+'px';
+    canvas.style.height = cssH+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+  window.addEventListener('resize', fitCanvas);
+
+  function layout(){
+    const chartW = cssW - AXIS_W;
+    const mainH = (cssH - TIME_AXIS_H) * (1 - VOL_FRAC);
+    const volTop = mainH + 4;
+    const volH = (cssH - TIME_AXIS_H) - mainH - 4;
+    return {chartW, mainH, volTop, volH};
+  }
+
+  function maxFutureCandles(){
+    const {chartW} = layout();
+    const visibleCount = Math.ceil(chartW/state.candleWidth) + 2;
+    return Math.floor(visibleCount*0.7);
+  }
+
+  function visibleRange(){
+    const {chartW} = layout();
+    const slot = state.candleWidth;
+    const n = state.candles.length;
+    if(n === 0) return {rightIdx:-1, leftIdx:-1, slot};
+    const visibleCount = Math.ceil(chartW/slot) + 2;
+    const maxFuture = maxFutureCandles();
+    let rightIdx = n - 1 - state.offset;
+    rightIdx = Math.max(-maxFuture, Math.min(n-1+maxFuture, rightIdx));
+    const leftIdx = rightIdx - visibleCount + 1;
+    return {rightIdx, leftIdx, slot};
+  }
+
+  function indexToX(i){
+    const {chartW} = layout();
+    const {rightIdx, slot} = visibleRange();
+    const distFromRight = rightIdx - i;
+    return chartW - distFromRight*slot - slot/2;
+  }
+  function xToIndex(x){
+    const {chartW} = layout();
+    const {rightIdx, slot} = visibleRange();
+    const distFromRight = (chartW - x)/slot;
+    return Math.round(rightIdx - distFromRight + 0.5);
+  }
+
+  function clampScale(s){ return Math.max(0.04, Math.min(25, s)); }
+
+  function autoPriceExtent(){
+    const n = state.candles.length;
+    if(n === 0) return {min:0,max:1};
+    const {leftIdx, rightIdx} = visibleRange();
+    const lo = Math.max(0, leftIdx), hi = Math.min(n-1, rightIdx);
+    let min = Infinity, max = -Infinity;
+    for(let i=lo;i<=hi;i++){
+      const c = state.candles[i];
+      if(!c) continue;
+      if(c.l < min) min = c.l;
+      if(c.h > max) max = c.h;
+    }
+    if(!isFinite(min) || !isFinite(max)){
+      const fLo = Math.max(0, n-20);
+      for(let i=fLo;i<n;i++){
+        const c = state.candles[i];
+        if(c.l < min) min = c.l;
+        if(c.h > max) max = c.h;
+      }
+    }
+    if(!isFinite(min) || !isFinite(max)){ min=0; max=1; }
+    if(min === max){ min *= 0.995; max *= 1.005; }
+    const pad = (max-min)*0.08;
+    return {min: min-pad, max: max+pad};
+  }
+
+  function priceExtent(){
+    if(state.manualPriceRange) return state.manualPriceRange;
+    return autoPriceExtent();
+  }
+  function volExtent(){
+    const n = state.candles.length;
+    if(n === 0) return {max:1};
+    const {leftIdx, rightIdx} = visibleRange();
+    const lo = Math.max(0, leftIdx), hi = Math.min(n-1, rightIdx);
+    let max = 0;
+    for(let i=lo;i<=hi;i++){
+      const c = state.candles[i];
+      if(c && c.v > max) max = c.v;
+    }
+    return {max: max || 1};
+  }
+
+  function priceToY(p, ext){
+    const {mainH} = layout();
+    const usable = mainH - PAD_TOP - PAD_BOTTOM;
+    return PAD_TOP + (ext.max - p)/(ext.max - ext.min) * usable;
+  }
+  function yToPrice(y, ext){
+    const {mainH} = layout();
+    const usable = mainH - PAD_TOP - PAD_BOTTOM;
+    const t = (y - PAD_TOP)/usable;
+    return ext.max - t*(ext.max-ext.min);
+  }
+  function volToY(v, ext){
+    const {volTop, volH} = layout();
+    return volTop + volH - (v/ext.max)*volH*0.92;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,cssW,cssH);
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0,0,cssW,cssH);
+
+    if(state.candles.length === 0) return;
+
+    const {chartW, mainH, volTop, volH} = layout();
+    const {leftIdx, rightIdx, slot} = visibleRange();
+    const pExt = priceExtent();
+    const vExt = volExtent();
+
+    drawPriceGrid(pExt, chartW, mainH);
+    drawVolumeAxisLine(volTop, volH, chartW);
+    drawCandles(leftIdx, rightIdx, pExt, slot, chartW);
+    drawDaySeparators(leftIdx, rightIdx, chartW, 0, volTop+volH);
+    drawVolumeBars(leftIdx, rightIdx, vExt, slot);
+    drawTimeAxis(leftIdx, rightIdx, chartW);
+    drawLivePriceLine(pExt, chartW);
+    drawMeasurement(pExt, chartW, mainH);
+    drawCrosshair(pExt, vExt, chartW, mainH, volTop, volH);
+
+    updateOhlcStrip(pExt);
+
+    if (leftIdx < 20 && !state.historyLoading && state.candles.length > 0) {
+      loadMoreHistory();
+    }
+  }
+
+  function drawPriceGrid(ext, chartW, mainH){
+    const step = niceStep(ext.max-ext.min, 5);
+    const start = Math.ceil(ext.min/step)*step;
+    ctx.save();
+    ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textBaseline = 'middle';
+    for(let p = start; p <= ext.max; p += step){
+      const y = Math.round(priceToY(p, ext)) + 0.5;
+      if(y < 0 || y > mainH) continue;
+      ctx.strokeStyle = COLORS.grid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(chartW, y);
+      ctx.stroke();
+
+      ctx.fillStyle = COLORS.axisText;
+      ctx.textAlign = 'left';
+      ctx.fillText(fmtPrice(p), chartW+8, y);
+    }
+    ctx.strokeStyle = COLORS.gridStrong;
+    ctx.beginPath();
+    ctx.moveTo(Math.round(chartW)+0.5, 0);
+    ctx.lineTo(Math.round(chartW)+0.5, mainH);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawVolumeAxisLine(volTop, volH, chartW){
+    ctx.save();
+    ctx.strokeStyle = COLORS.grid;
+    ctx.beginPath();
+    ctx.moveTo(0, Math.round(volTop)+0.5);
+    ctx.lineTo(chartW, Math.round(volTop)+0.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCandles(leftIdx, rightIdx, ext, slot, chartW){
+    const bodyW = Math.max(1, slot*0.62);
+    for(let i=leftIdx;i<=rightIdx;i++){
+      const c = state.candles[i];
+      if(!c) continue;
+      const x = Math.round(indexToX(i));
+      if(x < -slot || x > chartW+slot) continue;
+      const up = c.c >= c.o;
+      const color = up ? COLORS.up : COLORS.down;
+      const oy = priceToY(c.o, ext);
+      const cy = priceToY(c.c, ext);
+      const hy = priceToY(c.h, ext);
+      const ly = priceToY(c.l, ext);
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x+0.5, hy);
+      ctx.lineTo(x+0.5, ly);
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      const top = Math.min(oy,cy);
+      const h = Math.max(1, Math.abs(cy-oy));
+      ctx.fillRect(x - bodyW/2, top, bodyW, h);
+    }
+  }
+
+  function drawDaySeparators(leftIdx, rightIdx, chartW, topY, bottomY){
+    if(state.candles.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = COLORS.daySeparator;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,4]);
+    for(let i=leftIdx;i<=rightIdx;i++){
+      const c = state.candles[i];
+      if(!c) continue;
+      const d = new Date(c.t);
+      if(i > 0){
+        const prev = state.candles[i-1];
+        if(prev && new Date(prev.t).getDate() !== d.getDate()){
+          const x = Math.round(indexToX(i)) + 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, topY);
+          ctx.lineTo(x, bottomY);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawVolumeBars(leftIdx, rightIdx, ext, slot){
+    const {volTop, volH} = layout();
+    const bodyW = Math.max(1, slot*0.62);
+    for(let i=leftIdx;i<=rightIdx;i++){
+      const c = state.candles[i];
+      if(!c) continue;
+      const x = Math.round(indexToX(i));
+      const up = c.c >= c.o;
+      ctx.fillStyle = up ? COLORS.upSoft : COLORS.downSoft;
+      const y = volToY(c.v, ext);
+      ctx.fillRect(x - bodyW/2, y, bodyW, (volTop+volH) - y);
+    }
+  }
+
+  function drawTimeAxis(leftIdx, rightIdx, chartW){
+    const {mainH} = layout();
+    const slot = state.candleWidth;
+    const minLabelGap = 84;
+    const step = Math.max(1, Math.ceil(minLabelGap/slot));
+    ctx.save();
+    ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+    ctx.fillStyle = COLORS.axisText;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for(let i=leftIdx;i<=rightIdx;i+=step){
+      const c = state.candles[i];
+      if(!c) continue;
+      const x = Math.round(indexToX(i));
+      if(x < 20 || x > chartW-20) continue;
+      ctx.fillText(fmtTimeAxis(c.t, state.interval), x, cssH-TIME_AXIS_H+7);
+    }
+    ctx.restore();
+  }
+
+  function drawLivePriceLine(ext, chartW){
+    const last = state.candles[state.candles.length-1];
+    if(!last) return;
+    const price = state.lastTradePrice != null ? state.lastTradePrice : last.c;
+    if(price < ext.min || price > ext.max) return;
+    const y = Math.round(priceToY(price, ext)) + 0.5;
+    const up = price >= last.o;
+    const color = up ? COLORS.up : COLORS.down;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.55;
+    ctx.setLineDash([3,3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(chartW, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+
+    const label = fmtPrice(price);
+    ctx.font = '600 11px ' + getComputedStyle(document.body).fontFamily;
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = color;
+    ctx.fillRect(chartW, y-9, AXIS_W>tw+16?AXIS_W:tw+16, 18);
+    ctx.fillStyle = '#08090b';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, chartW+8, y+0.5);
+    ctx.restore();
+  }
+
+  function drawCrosshair(pExt, vExt, chartW, mainH, volTop, volH){
+    if(!state.mouse.inChart || state.mouse.x == null) return;
+    if(state.measuring) return;
+    const x = Math.round(state.mouse.x) + 0.5;
+    const y = Math.round(state.mouse.y) + 0.5;
+    if(x > chartW) return;
+
+    ctx.save();
+    ctx.strokeStyle = COLORS.crosshair;
+    ctx.setLineDash([3,4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, volTop+volH);
+    ctx.stroke();
+    if(state.mouse.y <= mainH){
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(chartW, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    if(state.mouse.y <= mainH){
+      const price = yToPrice(state.mouse.y, pExt);
+      const label = fmtPrice(price);
+      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = '#20242c';
+      ctx.fillRect(chartW, y-9, Math.max(AXIS_W, tw+16), 18);
+      ctx.fillStyle = '#E4E8F1';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, chartW+8, y+0.5);
+    }
+    const idx = clampIndex(xToIndex(state.mouse.x));
+    const c = state.candles[idx];
+    if(c){
+      const label = fmtTimeAxis(c.t, state.interval);
+      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      const tw = ctx.measureText(label).width;
+      ctx.fillStyle = '#20242c';
+      ctx.fillRect(Math.min(Math.max(0,x-tw/2-8), chartW-tw-16), cssH-TIME_AXIS_H, tw+16, TIME_AXIS_H-2);
+      ctx.fillStyle = '#E4E8F1';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, Math.min(Math.max(tw/2+8,x), chartW-tw/2-8), cssH-TIME_AXIS_H/2-1);
+    }
+    ctx.restore();
+  }
+
+  function clampIndex(i){
+    return Math.max(0, Math.min(state.candles.length-1, i));
+  }
+
+  function drawMeasurement(ext, chartW, mainH){
+    state.measurements.forEach(m => {
+      drawSingleMeasurement(m.start, m.end, ext, chartW, mainH);
+    });
+
+    if (state.pendingMeasurement) {
+      const start = state.pendingMeasurement.start;
+      const sx = Math.round(indexToX(start.index)) + 0.5;
+      const sy = Math.round(priceToY(start.price, ext)) + 0.5;
+
+      ctx.save();
+      ctx.fillStyle = '#5A87FF';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      if (state.mouse.inChart && state.mouse.x != null && state.mouse.x <= chartW) {
+        const mx = Math.round(state.mouse.x) + 0.5;
+        const my = Math.round(state.mouse.y) + 0.5;
+        const endIdx = clampIndex(xToIndex(state.mouse.x));
+        const endPrice = yToPrice(Math.max(0, Math.min(state.mouse.y, mainH)), ext);
+        const ex = Math.round(indexToX(endIdx)) + 0.5;
+        const ey = Math.round(priceToY(endPrice, ext)) + 0.5;
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(90,135,255,0.8)';
+        ctx.setLineDash([4,4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawSingleMeasurement(start, end, ext, chartW, mainH){
+    const sIdx = clampIndex(start.index), eIdx = clampIndex(end.index);
+    const sPrice = start.price, ePrice = end.price;
+    const sx = Math.round(indexToX(sIdx)) + 0.5;
+    const ex = Math.round(indexToX(eIdx)) + 0.5;
+    const sy = Math.round(priceToY(sPrice, ext)) + 0.5;
+    const ey = Math.round(priceToY(ePrice, ext)) + 0.5;
+    const up = ePrice >= sPrice;
+    const color = up ? COLORS.up : COLORS.down;
+    const softColor = up ? COLORS.upSoft : COLORS.downSoft;
+
+    ctx.save();
+    ctx.fillStyle = softColor;
+    ctx.fillRect(Math.min(sx,ex), Math.min(sy,ey), Math.abs(ex-sx), Math.abs(ey-sy));
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.7;
+    ctx.strokeRect(Math.min(sx,ex)+0.5, Math.min(sy,ey)+0.5, Math.abs(ex-sx), Math.abs(ey-sy));
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.setLineDash([2,3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, sy);
+    ctx.lineTo(chartW, sy);
+    ctx.stroke();
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, ey);
+    ctx.lineTo(chartW, ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.beginPath();
+    ctx.moveTo(ex, Math.min(sy,ey));
+    ctx.lineTo(ex, Math.max(sy,ey));
+    ctx.stroke();
+
+    drawAxisChip(sy, fmtPrice(sPrice), '#20242c', '#c7cad2', chartW);
+    drawAxisChip(ey, fmtPrice(ePrice), color, '#08090b', chartW);
+
+    const pct = ((ePrice - sPrice)/sPrice) * 100;
+    const diff = ePrice - sPrice;
+    const bars = Math.abs(eIdx - sIdx);
+    const lines = [ (up?'+':'') + pct.toFixed(2)+'%', (up?'+':'')+fmtPrice(diff), bars + ' баров' ];
+    ctx.font = '600 13px ' + getComputedStyle(document.body).fontFamily;
+    const w1 = ctx.measureText(lines[0]).width;
+    ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+    const w2 = Math.max(ctx.measureText(lines[1]).width, ctx.measureText(lines[2]).width);
+    const boxW = Math.max(w1,w2) + 24;
+    const boxH = 58;
+    let bx = ex + 12;
+    let by = ey - boxH/2;
+    if(bx + boxW > chartW) bx = ex - boxW - 12;
+    by = Math.max(4, Math.min(mainH-boxH-4, by));
+
+    ctx.fillStyle = 'rgba(12,14,17,0.92)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    roundRect(ctx, bx, by, boxW, boxH, 8);
+    ctx.fill(); ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = color;
+    ctx.font = '600 13px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textBaseline = 'top';
+    ctx.fillText(lines[0], bx+12, by+8);
+    ctx.fillStyle = '#9ba1ad';
+    ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+    ctx.fillText(lines[1], bx+12, by+28);
+    ctx.fillText(lines[2], bx+12, by+42);
+
+    ctx.restore();
+  }
+
+  function drawAxisChip(y, text, bg, fg, chartW){
+    ctx.save();
+    ctx.font = '600 11px ' + getComputedStyle(document.body).fontFamily;
+    const tw = ctx.measureText(text).width;
+    const w = Math.max(AXIS_W, tw+16);
+    ctx.fillStyle = bg;
+    ctx.fillRect(chartW, y-9, w, 18);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, chartW+8, y+0.5);
+    ctx.restore();
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function updateOhlcStrip(ext){
+    const idx = (state.hoverIndex != null) ? state.hoverIndex : state.candles.length-1;
+    const c = state.candles[idx];
+    if(!c) return;
+    const up = c.c >= c.o;
+    ohlcO.textContent = fmtPrice(c.o);
+    ohlcH.textContent = fmtPrice(c.h);
+    ohlcL.textContent = fmtPrice(c.l);
+    ohlcC.textContent = fmtPrice(c.c);
+    ohlcC.className = up ? 'up' : 'down';
+    ohlcV.textContent = fmtVol(c.v);
+  }
+
+  canvas.addEventListener('mousemove', (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    state.mouse.x = x; state.mouse.y = y; state.mouse.inChart = true;
+    const {chartW, mainH} = layout();
+
+    if(x > chartW) canvas.style.cursor = 'ns-resize';
+    else canvas.style.cursor = 'crosshair';
+
+    if(state.axisDragging){
+      const dy = y - state.axisDragStartY;
+      const base = state.axisDragBaseRange;
+      const mid = (base.min+base.max)/2;
+      const scale = clampScale(Math.exp(dy*0.006));
+      const half = (base.max-base.min)/2*scale;
+      state.manualPriceRange = {min: mid-half, max: mid+half};
+    } else if(state.dragging){
+      const dx = x - state.dragStartX;
+      const dy = y - state.dragStartY;
+      if(Math.abs(dx) > 2 || Math.abs(dy) > 2) state.didDrag = true;
+      const newOffset = state.dragStartOffset + Math.round(dx / state.candleWidth);
+      state.offset = clampOffset(newOffset);
+
+      if(state.dragStartPriceRange){
+        const base = state.dragStartPriceRange;
+        const usable = mainH - PAD_TOP - PAD_BOTTOM;
+        const pricePerPixel = (base.max - base.min) / usable;
+        const deltaP = dy * pricePerPixel;
+        state.manualPriceRange = {min: base.min + deltaP, max: base.max + deltaP};
+      }
+    } else {
+      state.hoverIndex = clampIndex(xToIndex(Math.min(x,chartW)));
+    }
+    draw();
+  });
+
+  canvas.addEventListener('mouseleave', ()=>{
+    state.mouse.inChart = false;
+    state.hoverIndex = null;
+    if(state.dragging) endDrag();
+    if(state.axisDragging) state.axisDragging = false;
+    draw();
+  });
+
+  canvas.addEventListener('mousedown', (e)=>{
+    if(e.button === 2) {
+      handleRightClick(e);
+      return;
+    }
+    if(e.button !== 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const {chartW, mainH} = layout();
+
+    if(x > chartW){
+      const base = priceExtent();
+      if(!state.manualPriceRange) state.manualPriceRange = {min: base.min, max: base.max};
+      state.axisDragging = true;
+      state.axisDragStartY = y;
+      state.axisDragBaseRange = {min: state.manualPriceRange.min, max: state.manualPriceRange.max};
+      return;
+    }
+
+    if(state.measureToolActive){
+      if(!state.pendingMeasurement){
+        const ext = priceExtent();
+        const idx = clampIndex(xToIndex(x));
+        const price = yToPrice(Math.max(0, Math.min(y, mainH)), ext);
+        state.pendingMeasurement = { start: {index: idx, price: price} };
+        draw();
+      } else {
+        const ext = priceExtent();
+        const idx = clampIndex(xToIndex(x));
+        const price = yToPrice(Math.max(0, Math.min(y, mainH)), ext);
+        const newMeasurement = {
+          start: state.pendingMeasurement.start,
+          end: {index: idx, price: price}
+        };
+        state.measurements.push(newMeasurement);
+        state.pendingMeasurement = null;
+        state.measureToolActive = false;
+        draw();
+      }
+      return;
+    }
+
+    state.dragging = true;
+    state.didDrag = false;
+    state.dragStartX = x;
+    state.dragStartY = y;
+    state.dragStartOffset = state.offset;
+    state.dragStartPriceRange = state.manualPriceRange ? {min: state.manualPriceRange.min, max: state.manualPriceRange.max} : null;
+  });
+
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  function handleRightClick(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const {chartW, mainH} = layout();
+    if (x > chartW) return;
+    const ext = priceExtent();
+
+    let foundIndex = -1;
+    state.measurements.forEach((m, idx) => {
+      const sIdx = clampIndex(m.start.index);
+      const eIdx = clampIndex(m.end.index);
+      const sPrice = m.start.price;
+      const ePrice = m.end.price;
+      const sx = indexToX(sIdx);
+      const ex = indexToX(eIdx);
+      const sy = priceToY(sPrice, ext);
+      const ey = priceToY(ePrice, ext);
+      const minX = Math.min(sx, ex) - 4;
+      const maxX = Math.max(sx, ex) + 4;
+      const minY = Math.min(sy, ey) - 4;
+      const maxY = Math.max(sy, ey) + 4;
+      if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+        foundIndex = idx;
+      }
+    });
+
+    if (foundIndex !== -1) {
+      state.measurements.splice(foundIndex, 1);
+      draw();
+    }
+  }
+
+  canvas.addEventListener('dblclick', (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const {chartW} = layout();
+    if(x > chartW){
+      state.manualPriceRange = autoPriceExtent();
+      draw();
+    }
+  });
+
+  window.addEventListener('mouseup', ()=>{
+    if(state.dragging) endDrag();
+    if(state.axisDragging) state.axisDragging = false;
+  });
+
+  function endDrag(){
+    state.dragging = false;
+    if(!state.didDrag){
+      state.measurement = null;
+      draw();
+    }
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      state.measurements = [];
+      state.pendingMeasurement = null;
+      state.measureToolActive = false;
+      draw();
+    }
+    if(e.key === 'Shift' && !state.shiftDown){
+      state.shiftDown = true;
+      state.measureToolActive = true;
+      state.pendingMeasurement = null;
+      draw();
+    }
+  });
+  window.addEventListener('keyup', (e)=>{
+    if(e.key === 'Shift'){
+      state.shiftDown = false;
+    }
+  });
+  window.addEventListener('blur', ()=>{
+    state.shiftDown = false;
+  });
+
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const {chartW} = layout();
+
+    if(Math.abs(e.deltaX) > Math.abs(e.deltaY)){
+      const deltaCandles = e.deltaX / state.candleWidth;
+      state.offset = clampOffset(state.offset + deltaCandles);
+      draw();
+      return;
+    }
+
+    const idxAtCursor = clampIndex(xToIndex(x));
+    const factor = e.deltaY > 0 ? 0.88 : 1.14;
+    const newSlot = Math.max(0.5, Math.min(80, state.candleWidth*factor));
+    state.candleWidth = newSlot;
+
+    const targetRightIdx = idxAtCursor + Math.round((chartW - x)/newSlot);
+    state.offset = clampOffset(state.candles.length - 1 - targetRightIdx);
+
+    draw();
+  }, {passive:false});
+
+  function clampOffset(o){
+    const n = state.candles.length;
+    if(n===0) return 0;
+    const maxFuture = maxFutureCandles();
+    return Math.max(-maxFuture, Math.min(n-1, Math.round(o)));
+  }
+
+  async function fetchKlines(symbol, interval, limit, endTime) {
+    let url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    if (endTime) url += `&endTime=${endTime}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('klines http '+res.status);
+    const raw = await res.json();
+    return raw.map(k=>({
+      t: k[0], o: parseFloat(k[1]), h: parseFloat(k[2]), l: parseFloat(k[3]),
+      c: parseFloat(k[4]), v: parseFloat(k[5])
+    }));
+  }
+  async function fetch24hr(symbol){
+    const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('24hr http '+res.status);
+    return res.json();
+  }
+
+  function connectWs(symbol, interval, token){
+    const s = symbol.toLowerCase();
+    const streams = [`${s}@kline_${interval}`, `${s}@trade`, `${s}@ticker`].join('/');
+    const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+    const ws = new WebSocket(url);
+    state.ws = ws;
+
+    ws.onopen = ()=>{ if(token===state.wsToken) connDot.classList.add('live'); };
+    ws.onclose = ()=>{
+      connDot.classList.remove('live');
+      if(token === state.wsToken){
+        setTimeout(()=>{ if(token===state.wsToken) connectWs(symbol, interval, token); }, 1500);
+      }
+    };
+    ws.onerror = ()=>{ try{ws.close();}catch(_){} };
+    ws.onmessage = (ev)=>{
+      if(token !== state.wsToken) return;
+      let msg;
+      try{ msg = JSON.parse(ev.data); } catch(_){ return; }
+      const streamName = msg.stream || '';
+      const data = msg.data || msg;
+      if(streamName.endsWith('@kline_'+interval) && data.k){
+        handleKline(data.k);
+      } else if(streamName.endsWith('@trade') && data.p){
+        state.lastTradePrice = parseFloat(data.p);
+        updateHeaderPrice();
+        draw();
+      } else if(streamName.endsWith('@ticker')){
+        state.ticker24h = data;
+        updateHeaderPrice();
+      }
+    };
+  }
+
+  function handleKline(k){
+    const t = k.t;
+    const bar = {t, o:parseFloat(k.o), h:parseFloat(k.h), l:parseFloat(k.l), c:parseFloat(k.c), v:parseFloat(k.v)};
+    const arr = state.candles;
+    const last = arr[arr.length-1];
+    if(last && last.t === t){
+      arr[arr.length-1] = bar;
+    } else if(!last || t > last.t){
+      arr.push(bar);
+      if (state.offset > 0) {
+        state.offset += 1;
+      } else if (state.offset < 0) {
+        state.offset -= 1;
+      }
+    }
+    state.lastTradePrice = bar.c;
+    updateHeaderPrice();
+    draw();
+  }
+
+  function updateHeaderPrice(){
+    const last = state.candles[state.candles.length-1];
+    const price = state.lastTradePrice != null ? state.lastTradePrice : (last?last.c:null);
+    lastPriceEl.textContent = price!=null ? fmtPrice(price) : '—';
+    let pct = null;
+    if(state.ticker24h && state.ticker24h.P != null){
+      pct = parseFloat(state.ticker24h.P);
+    }
+    if(pct != null){
+      pctChangeEl.textContent = fmtPct(pct);
+      pctChangeEl.className = 'pct ' + (pct>=0?'up':'down');
+    } else {
+      pctChangeEl.textContent = '—';
+      pctChangeEl.className = 'pct';
+    }
+  }
+
+  async function loadSymbolInterval(symbol, interval){
+    state.wsToken++;
+    const myToken = state.wsToken;
+    if(state.ws){ try{ state.ws.onclose=null; state.ws.close(); }catch(_){} }
+    connDot.classList.remove('live');
+
+    loadingOverlay.classList.remove('hidden');
+    state.symbol = symbol; state.interval = interval;
+    state.candles = [];
+    state.offset = 0;
+    state.manualPriceRange = null;
+    state.measurements = [];
+    state.pendingMeasurement = null;
+    state.measureToolActive = false;
+    state.lastTradePrice = null;
+    symbolInput.value = symbol;
+    lastPriceEl.textContent = '—';
+    pctChangeEl.textContent = '—'; pctChangeEl.className = 'pct';
+
+    try{
+      const [klines, ticker] = await Promise.all([
+        fetchKlines(symbol, interval, state.limit),
+        fetch24hr(symbol).catch(()=>null)
+      ]);
+      if(myToken !== state.wsToken) return;
+      state.candles = klines;
+      state.ticker24h = ticker;
+      updateHeaderPrice();
+      state.manualPriceRange = autoPriceExtent();
+      draw();
+      connectWs(symbol, interval, myToken);
+    } catch(err){
+      console.error(err);
+    } finally {
+      if(myToken === state.wsToken) loadingOverlay.classList.add('hidden');
+    }
+  }
+
+  document.getElementById('intervalRow').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.ivl');
+    if(!btn) return;
+    document.querySelectorAll('.ivl').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    loadSymbolInterval(state.symbol, btn.dataset.ivl);
+  });
+
+  symbolInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      const sym = symbolInput.value.trim().toUpperCase();
+      if(sym.length >= 5){
+        loadSymbolInterval(sym, state.interval);
+        if(window.onChartSymbolChanged) window.onChartSymbolChanged(sym);
+      }
+    }
+  });
+
+  fitCanvas();
+  loadSymbolInterval(state.symbol, state.interval);
+
+  async function loadMoreHistory() {
+    if (state.historyLoading || state.candles.length === 0) return;
+    state.historyLoading = true;
+    const earliestTime = state.candles[0].t;
+    const symbol = state.symbol;
+    const interval = state.interval;
+    const limit = Math.min(state.limit, 1000);
+    try {
+      const olderCandles = await fetchKlines(symbol, interval, limit, earliestTime - 1);
+      if (olderCandles.length > 0 && olderCandles[olderCandles.length-1].t < earliestTime) {
+        state.candles = olderCandles.concat(state.candles);
+        draw();
+      }
+    } catch (err) {
+      console.error('Ошибка подгрузки истории:', err);
+    } finally {
+      state.historyLoading = false;
+    }
+  }
+
+  /* Публичный API для внешнего управления графиком (используется скринером справа) */
+  window.ChartAPI = {
+    load: function(symbol, interval){
+      loadSymbolInterval(symbol, interval || state.interval);
+    },
+    currentSymbol: function(){ return state.symbol; },
+    currentInterval: function(){ return state.interval; }
+  };
+
+})();
+</script>
+
+<!-- ============ SCREENER SCRIPT ============ -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script>
 const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount } = Vue;
@@ -728,6 +1621,8 @@ const HISTORY_TTL = 320000;
 const FLASH_MS = 950;
 const STORAGE_PREFIX = 'screener:';
 const MAX_GHOST_ROWS = 300;
+const ATR_PERIOD_MS = 60000;
+const ATR_WINDOW_PERIODS = 10;
 
 const store = {
   get(key, fallback) {
@@ -767,7 +1662,6 @@ const mcapMap = reactive(new Map());
 const MCAP_CACHE_KEY = 'mcapMap:v1';
 const MCAP_CACHE_TTL = 5 * 60 * 1000;
 
-// --- Fallback market-cap resolution ---
 const TOKENIZED_STOCK_CATEGORIES = ['bstocks-ecosystem', 'xstocks-ecosystem', 'tokenized-stock'];
 
 const mcapPendingSymbols = reactive(new Set());
@@ -959,7 +1853,6 @@ const initMarketData = async () => {
 
 initMarketData();
 
-// Компонент для отображения иконки монеты
 const CoinIcon = {
   props: {
     symbol: { type: String, required: true },
@@ -1008,7 +1901,6 @@ const CoinIcon = {
   `
 };
 
-// Компонент мини-графика
 const MiniChart = {
   props: {
     data: { type: Array, default: () => [] }
@@ -1049,6 +1941,7 @@ createApp({
     const vol24hMap = new Map();
     const favs = reactive(new Set(store.get('favs', [])));
     const blockedSymbols = reactive(new Set(store.get('blockedSymbols', [])));
+    const visitedSymbols = reactive(new Set(store.get('visitedSymbols', [])));
     const uiTick = ref(0);
     const totalPairs = ref(0);
     const ups = ref(0);
@@ -1088,6 +1981,9 @@ createApp({
 
     const showBlocklistModal = ref(false);
 
+    /* Активный (выбранный на графике) символ */
+    const activeSymbol = ref('BTCUSDT');
+
     const alertedChg1m = reactive(new Set());
     const alertedChg5m = reactive(new Set());
     const originalTitle = document.title;
@@ -1108,116 +2004,6 @@ createApp({
     let latencyN = 0;
     let connectedAt = 0;
     const timers = [];
-
-    const charts = reactive([]);
-    const chartEls = new Map();
-    let chartIdSeq = 0;
-    let zCounter = 200;
-    let dragState = null;
-
-    const setChartRef = (id, el) => {
-      if (el) chartEls.set(id, el);
-      else chartEls.delete(id);
-    };
-
-    const bringToFront = (id) => {
-      const c = charts.find(x => x.id === id);
-      if (c) c.z = ++zCounter;
-    };
-
-    const openChart = (row) => {
-      // Эта функция больше не вызывается из таблицы
-      const id = ++chartIdSeq;
-      const w = Math.min(760, window.innerWidth - 24);
-      const baseX = Math.max(12, Math.round((window.innerWidth - w) / 2));
-      const baseY = Math.max(70, Math.round(window.innerHeight * 0.16));
-      const offset = (charts.length % 8) * 28;
-      charts.push({
-        id,
-        sym: row.sym,
-        base: row.base,
-        quote: row.quote,
-        loading: true,
-        x: baseX + offset,
-        y: baseY + offset,
-        z: ++zCounter
-      });
-    };
-
-    const closeChart = (id) => {
-      const idx = charts.findIndex(x => x.id === id);
-      if (idx !== -1) charts.splice(idx, 1);
-      chartEls.delete(id);
-    };
-
-    const closeTopChart = () => {
-      if (!charts.length) return;
-      let top = charts[0];
-      for (const c of charts) if (c.z > top.z) top = c;
-      closeChart(top.id);
-    };
-
-    const startDrag = (e, chart) => {
-      bringToFront(chart.id);
-      const el = chartEls.get(chart.id);
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      dragState = {
-        id: chart.id,
-        offsetX: e.clientX - rect.left,
-        offsetY: e.clientY - rect.top,
-        el
-      };
-      document.addEventListener('mousemove', onDrag);
-      document.addEventListener('mouseup', endDrag);
-      e.preventDefault();
-    };
-
-    const onDrag = (e) => {
-      if (!dragState) return;
-      const chart = charts.find(x => x.id === dragState.id);
-      if (!chart) return;
-      const w = dragState.el.offsetWidth;
-      const h = dragState.el.offsetHeight;
-      let x = e.clientX - dragState.offsetX;
-      let y = e.clientY - dragState.offsetY;
-      x = Math.min(Math.max(0, x), window.innerWidth - Math.min(w, window.innerWidth));
-      y = Math.min(Math.max(0, y), window.innerHeight - Math.min(h, window.innerHeight));
-      chart.x = x;
-      chart.y = y;
-    };
-
-    const endDrag = () => {
-      dragState = null;
-      document.removeEventListener('mousemove', onDrag);
-      document.removeEventListener('mouseup', endDrag);
-    };
-
-    const chartSrcFor = (chart) => {
-      if (!chart || !chart.sym) return 'about:blank';
-      const tvSymbol = 'BINANCE:' + chart.sym;
-      const cfg = {
-        symbol: tvSymbol,
-        interval: '1',
-        timezone: 'Etc/UTC',
-        theme: 'dark',
-        style: '1',
-        locale: 'ru',
-        toolbar_bg: '#11151F',
-        enable_publishing: false,
-        allow_symbol_change: true,
-        hide_top_toolbar: false,
-        hide_legend: false,
-        save_image: false,
-        calendar: false,
-        support_host: 'https://www.tradingview.com'
-      };
-      return 'https://s.tradingview.com/embed-widget/advanced-chart/?locale=ru#' + encodeURIComponent(JSON.stringify(cfg));
-    };
-
-    const onChartKeydown = (e) => {
-      if (e.key === 'Escape' && charts.length) closeTopChart();
-    };
 
     const fetchVolume24h = async () => {
       try {
@@ -1317,20 +2103,20 @@ createApp({
       if (!e) {
         e = { 
           sym, price, vol: 0, lastP: null, dir: 0, flashAt: 0, ticks: [], history: [],
-          atrSum: 0, atrCount: 0, minuteStartPrice: price, minuteStartTs: Math.floor(eventTime / 60000)
+          atrReturns: [], minuteStartPrice: price, minuteStartTs: Math.floor(eventTime / ATR_PERIOD_MS)
         };
         marketData.set(sym, e);
       } else {
-        const currentMinute = Math.floor(eventTime / 60000);
-        if (currentMinute > e.minuteStartTs) {
+        const currentPeriod = Math.floor(eventTime / ATR_PERIOD_MS);
+        if (currentPeriod > e.minuteStartTs) {
           const prevClose = e.price;
           if (e.minuteStartPrice > 0 && isFinite(e.minuteStartPrice) && isFinite(prevClose)) {
             const pct = ((prevClose - e.minuteStartPrice) / e.minuteStartPrice) * 100;
-            e.atrSum += Math.abs(pct);
-            e.atrCount++;
+            e.atrReturns.push(Math.abs(pct));
+            if (e.atrReturns.length > ATR_WINDOW_PERIODS) e.atrReturns.shift();
           }
           e.minuteStartPrice = price;
-          e.minuteStartTs = currentMinute;
+          e.minuteStartTs = currentPeriod;
         }
       }
 
@@ -1392,10 +2178,9 @@ createApp({
         connectedAt = Date.now();
         uptimeSec.value = 0;
         for (const [sym, e] of marketData) {
-          e.atrSum = 0;
-          e.atrCount = 0;
+          e.atrReturns = [];
           e.minuteStartPrice = e.price;
-          e.minuteStartTs = Math.floor(Date.now() / 60000);
+          e.minuteStartTs = Math.floor(Date.now() / ATR_PERIOD_MS);
         }
       };
       ws.onmessage = handleMessage;
@@ -1434,7 +2219,7 @@ createApp({
 
         const history = e.history.slice(-60).map(h => ({ t: h.t, p: h.p }));
 
-        const atr1m = e.atrCount > 0 ? e.atrSum / e.atrCount : null;
+        const atr1m = e.atrReturns.length > 0 ? e.atrReturns.reduce((a, b) => a + b, 0) / e.atrReturns.length : null;
 
         const fireThr = parseNum(fireThreshold.value);
         const isFire = fireThr !== null && fireThr > 0 && chg1m !== null && Math.abs(chg1m) >= fireThr;
@@ -1502,8 +2287,10 @@ createApp({
       const maxC5m = parseNum(maxChg5m.value);
       const minV24 = parseNum(minVol24h.value);
       const maxV24 = parseNum(maxVol24h.value);
-      const minMc = parseNum(minMcap.value);
-      const maxMc = parseNum(maxMcap.value);
+      const minMcRaw = parseNum(minMcap.value);
+      const maxMcRaw = parseNum(maxMcap.value);
+      const minMc = minMcRaw !== null ? minMcRaw * 1e6 : null;
+      const maxMc = maxMcRaw !== null ? maxMcRaw * 1e6 : null;
 
       const rows = baseFilteredRows.value.filter(r => {
         if (minP !== null && r.price < minP) return false;
@@ -1616,22 +2403,19 @@ createApp({
 
     const isFav = (sym) => favs.has(sym);
 
-    // Новая функция для открытия Bitunix
-    const openBitunix = (row) => {
-      const base = row.base;
-      const quote = row.quote || 'USDT';
-      const url = `https://www.bitunix.com/contract-trade/${base}${quote}`;
-      window.open(url, '_blank', 'noopener');
+    const isVisited = (sym) => visitedSymbols.has(sym);
+    const markVisited = (sym) => {
+      if (!visitedSymbols.has(sym)) {
+        visitedSymbols.add(sym);
+        store.set('visitedSymbols', [...visitedSymbols]);
+      }
     };
 
-    const binanceUrl = (row) => `https://www.binance.com/en/trade/${row.base}_${row.quote}?type=spot`;
-
-    const tickStyle = (idx, len) => {
-      const rec = len <= 1 ? 1 : idx / (len - 1);
-      return {
-        height: (4 + rec * 10) + 'px',
-        opacity: (0.35 + rec * 0.65).toFixed(2)
-      };
+    /* Клик по паре: открыть её на графике слева */
+    const selectToken = (row) => {
+      activeSymbol.value = row.sym;
+      markVisited(row.sym);
+      if (window.ChartAPI) window.ChartAPI.load(row.sym);
     };
 
     const isBlocked = (sym) => blockedSymbols.has(sym);
@@ -1842,6 +2626,9 @@ createApp({
     const unlockAudio = () => { ensureAudioCtx(); };
 
     onMounted(() => {
+      /* Синхронизация активного символа при смене символа вручную через поле ввода графика */
+      window.onChartSymbolChanged = (sym) => { activeSymbol.value = sym; };
+
       connect();
       fetchVolume24h();
       timers.push(setInterval(fetchVolume24h, 300000));
@@ -1880,19 +2667,15 @@ createApp({
         }
       }, 30000));
       window.addEventListener('keydown', onKeydown);
-      window.addEventListener('keydown', onChartKeydown);
       document.addEventListener('visibilitychange', onVisibility);
     });
 
     onBeforeUnmount(() => {
       timers.forEach(clearInterval);
       window.removeEventListener('keydown', onKeydown);
-      window.removeEventListener('keydown', onChartKeydown);
       document.removeEventListener('visibilitychange', onVisibility);
       document.removeEventListener('click', unlockAudio);
       document.removeEventListener('keydown', unlockAudio);
-      document.removeEventListener('mousemove', onDrag);
-      document.removeEventListener('mouseup', endDrag);
       if (ws) {
         try { ws.close(); } catch {}
       }
@@ -1906,11 +2689,10 @@ createApp({
       sortKey, sortDir, hasFilters, resetFilters,
       filteredRows, displayedRows,
       sortBy, getSortIcon, toggleFav, isFav,
-      fmtPrice, fmtVol, fmtMCap, binanceUrl, openBitunix, tickStyle,
-      charts, setChartRef, chartSrcFor,
-      openChart, closeChart, startDrag, bringToFront,
+      fmtPrice, fmtVol, fmtMCap, selectToken,
       showPreview, hidePreview, previewRow, previewX, previewY,
-      isBlocked, toggleBlock, blockedList, openBlocklistModal, closeBlocklistModal, showBlocklistModal
+      isBlocked, toggleBlock, blockedList, openBlocklistModal, closeBlocklistModal, showBlocklistModal,
+      isVisited, activeSymbol
     };
   }
 }).mount('#app');
